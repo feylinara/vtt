@@ -19,6 +19,34 @@ struct HexGridBuilder<'a> {
     tiles: &'a [image::DynamicImage],
 }
 
+impl<'a> Default for HexGridBuilder<'a> {
+    fn default() -> Self {
+        Self {
+            outer_radius: 0, point_up: false, tiles: &[],
+        }
+    }
+}
+
+impl<'a> HexGridBuilder<'a> {
+    fn build(self) -> HexGrid {
+        let mut texture = render::texture::Texture2D::with_dimensions(
+            210 * self.tiles.len() as i32,
+            210,
+            render::texture::Format::Rgba,
+        );
+
+        for image in self.tiles.iter() {
+            texture.replace_rect(0, 0, image.clone());
+        }
+
+        let mut vbo = [0u32; 3];
+        unsafe {
+            gl::GenBuffers(vbo.len() as i32, &mut vbo[0] as *mut GLuint);
+        }
+        unimplemented!()
+    }
+}
+
 const QUAD: [f32; 3 * 2 * 2] = [0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0];
 
 const TEST_TILE1: &'static str = "tiles/Spaceland.Space/C. Anomalies/anom-008.png";
@@ -27,43 +55,14 @@ const TEST_TILE2: &'static str = "tiles/Spaceland.Space/C. Anomalies/anom-004.pn
 struct HexGrid {
     size: (u32, u32),
     tile_size: (u32, u32),
-    vbo: u32,
+    vbo: [u32; 3],
     vao: u32,
     texture: render::texture::Texture2D,
     program: render::program::Program,
 }
 
-const VERT: &str = r#"
-#version 330
-layout(location = 0) in vec2 pos;
-layout(location = 1) in vec2 offset;
-layout(location = 2) in float tile;
-
-uniform vec2 size;
-uniform mat4 projection;
-
-out vec2 texpos;
-flat out float fragtile;
-
-void main() {
-    gl_Position = projection * vec4(offset + pos * size, 1.0, 1.0);
-    texpos = pos;
-    fragtile = tile;
-}
-"#;
-
-const FRAG: &str = r#"
-#version 330
-uniform vec2 size;
-uniform sampler2D tilesheet;
-in vec2 texpos;
-flat in float fragtile;
-uniform float ntiles;
-
-void main() {
-  gl_FragColor = texture2D(tilesheet, vec2((texpos.x + fragtile) / ntiles, 1 - texpos.y));
-}
-"#;
+const VERT: &str = include_str!("../resources/shaders/grid.vert");
+const FRAG: &str = include_str!("../resources/shaders/grid.frag");
 
 fn grid_coords(height: u32, width: u32, tile_size: f32) -> Vec<f32> {
     let stepx = tile_size / 2f32 * 3f32.sqrt();
@@ -151,44 +150,51 @@ fn main() {
         gl::VertexAttribPointer(0, 2, gl::FLOAT, gl::FALSE, 0, ::std::ptr::null());
 
         let offsets = grid_coords(4, 4, 210f32);
-        unsafe {
-            gl::BindBuffer(gl::ARRAY_BUFFER, vbo[1]);
-            gl::BufferData(
-                gl::ARRAY_BUFFER,
-                offsets.len() as isize * ::std::mem::size_of::<f32>() as isize,
-                &offsets[0] as *const _ as *const c_void,
-                gl::STATIC_DRAW,
-            );
-        }
+        gl::BindBuffer(gl::ARRAY_BUFFER, vbo[1]);
+        gl::BufferData(
+            gl::ARRAY_BUFFER,
+            offsets.len() as isize * ::std::mem::size_of::<f32>() as isize,
+            &offsets[0] as *const _ as *const c_void,
+            gl::STATIC_DRAW,
+        );
         gl::EnableVertexAttribArray(1);
         gl::VertexAttribDivisor(1, 6);
         gl::VertexAttribPointer(1, 2, gl::FLOAT, gl::FALSE, 0, ::std::ptr::null());
 
-        let tiles = [0f32, 0f32, 1f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32];
-        unsafe {
-            gl::BindBuffer(gl::ARRAY_BUFFER, vbo[2]);
-            gl::BufferData(
-                gl::ARRAY_BUFFER,
-                tiles.len() as isize * ::std::mem::size_of::<f32>() as isize,
-                &tiles[0] as *const _ as *const c_void,
-                gl::STATIC_DRAW,
-            );
-        }
+        let tiles = [
+            0f32, 0f32, 1f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32,
+            0f32, 0f32,
+        ];
+        gl::BindBuffer(gl::ARRAY_BUFFER, vbo[2]);
+        gl::BufferData(
+            gl::ARRAY_BUFFER,
+            tiles.len() as isize * ::std::mem::size_of::<f32>() as isize,
+            &tiles[0] as *const _ as *const c_void,
+            gl::STATIC_DRAW,
+        );
         gl::EnableVertexAttribArray(2);
         gl::VertexAttribDivisor(2, 6);
         gl::VertexAttribPointer(2, 1, gl::FLOAT, gl::FALSE, 0, ::std::ptr::null());
 
         event_loop.run(move |event, _, control_flow| {
-            gl::ClearColor(0.8, 0.8, 0.8, 1.0);
-            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
-            program.bind();
-            program.uniform_mat4("projection", &projection);
-            program.uniform_vec2("size", [210f32, 210f32].into());
-            program.uniform_f32("ntiles", 2.0);
-
-            gl::BindVertexArray(vao);
-            gl::DrawArraysInstanced(gl::TRIANGLES, 0, 6 as i32, 6 * 16);
-            context.swap_buffers().unwrap();
+            draw(&program, projection, vao, &context);
         });
     }
+}
+
+unsafe fn draw(
+    program: &render::Program,
+    projection: cgmath::Matrix4<f32>,
+    vao: u32,
+    context: &glutin::ContextWrapper<glutin::PossiblyCurrent, glutin::window::Window>,
+) {
+    gl::ClearColor(0.8, 0.8, 0.8, 1.0);
+    gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+    program.bind();
+    program.uniform_mat4("projection", &projection);
+    program.uniform_vec2("size", [210f32, 210f32].into());
+    program.uniform_f32("ntiles", 2.0);
+    gl::BindVertexArray(vao);
+    gl::DrawArraysInstanced(gl::TRIANGLES, 0, 6 as i32, 6 * 16);
+    context.swap_buffers().unwrap();
 }

@@ -168,6 +168,7 @@ impl Texture2D {
                 gl::UNSIGNED_BYTE,
                 data as *const c_void,
             );
+            gl::GenerateMipmap(gl::TEXTURE_2D);
         }
     }
 

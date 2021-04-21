@@ -37,13 +37,13 @@ const VERT: &str = r#"
 #version 330
 layout(location = 0) in vec2 pos;
 layout(location = 1) in vec2 offset;
-layout(location = 2) in int tile;
+layout(location = 2) in float tile;
 
 uniform vec2 size;
 uniform mat4 projection;
 
 out vec2 texpos;
-flat out int fragtile;
+flat out float fragtile;
 
 void main() {
     gl_Position = projection * vec4(offset + pos * size, 1.0, 1.0);
@@ -57,8 +57,8 @@ const FRAG: &str = r#"
 uniform vec2 size;
 uniform sampler2D tilesheet;
 in vec2 texpos;
-flat in int fragtile;
-uniform int ntiles;
+flat in float fragtile;
+uniform float ntiles;
 
 void main() {
   gl_FragColor = texture2D(tilesheet, vec2((texpos.x + fragtile) / ntiles, 1 - texpos.y));
@@ -71,7 +71,7 @@ fn grid_coords(height: u32, width: u32, tile_size: f32) -> Vec<f32> {
     let mut grid = Vec::new();
     for row in 0..height {
         for i in 0..width {
-            grid.push(i as f32 * stepx + if row % 2 == 0 { stepx / 2.0 } else { 0.0 });
+            grid.push(i as f32 * stepx - if row % 2 == 0 { stepx / 2.0 } else { 0.0 });
             grid.push(row as f32 * stepy);
         }
     }
@@ -164,27 +164,27 @@ fn main() {
         gl::VertexAttribDivisor(1, 6);
         gl::VertexAttribPointer(1, 2, gl::FLOAT, gl::FALSE, 0, ::std::ptr::null());
 
-        let tiles = [0u8, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let tiles = [0f32, 0f32, 1f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32];
         unsafe {
             gl::BindBuffer(gl::ARRAY_BUFFER, vbo[2]);
             gl::BufferData(
                 gl::ARRAY_BUFFER,
-                tiles.len() as isize * ::std::mem::size_of::<u8>() as isize,
+                tiles.len() as isize * ::std::mem::size_of::<f32>() as isize,
                 &tiles[0] as *const _ as *const c_void,
                 gl::STATIC_DRAW,
             );
         }
         gl::EnableVertexAttribArray(2);
         gl::VertexAttribDivisor(2, 6);
-        gl::VertexAttribPointer(2, 1, gl::BYTE, gl::FALSE, 0, ::std::ptr::null());
+        gl::VertexAttribPointer(2, 1, gl::FLOAT, gl::FALSE, 0, ::std::ptr::null());
 
         event_loop.run(move |event, _, control_flow| {
-            gl::ClearColor(1.0, 1.0, 1.0, 1.0);
+            gl::ClearColor(0.8, 0.8, 0.8, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
             program.bind();
             program.uniform_mat4("projection", &projection);
             program.uniform_vec2("size", [210f32, 210f32].into());
-            program.uniform_i32("ntiles", 2);
+            program.uniform_f32("ntiles", 2.0);
 
             gl::BindVertexArray(vao);
             gl::DrawArraysInstanced(gl::TRIANGLES, 0, 6 as i32, 6 * 16);

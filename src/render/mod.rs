@@ -2,7 +2,6 @@ pub mod program;
 pub mod texture;
 pub use self::program::{Program, ProgramBuilder, Shader, ShaderType};
 
-use cgmath::{Matrix, Matrix4, SquareMatrix};
 use gl;
 use gl::types::GLuint;
 use std::os::raw::c_void;
@@ -43,6 +42,12 @@ impl VertexBuffer {
                 &data[0] as *const _ as *const c_void,
                 storage_type(freq, typ),
             );
+        }
+    }
+
+    pub fn delete(&self) {
+        unsafe {
+            gl::DeleteBuffers(1, &self.id as *const u32)
         }
     }
 }
@@ -144,6 +149,41 @@ impl GlType for f32 {
     }
 }
 
+impl GlType for i32 {
+    fn to_enum() -> GLuint {
+        gl::INT
+    }
+}
+
+impl GlType for u32 {
+    fn to_enum() -> GLuint {
+        gl::UNSIGNED_INT
+    }
+}
+
+impl GlType for i16 {
+    fn to_enum() -> GLuint {
+        gl::SHORT
+    }
+}
+
+impl GlType for u16 {
+    fn to_enum() -> GLuint {
+        gl::UNSIGNED_SHORT
+    }
+}
+
+impl GlType for i8 {
+    fn to_enum() -> GLuint {
+        gl::BYTE
+    }
+}
+
+impl GlType for u8 {
+    fn to_enum() -> GLuint {
+        gl::UNSIGNED_BYTE
+    }
+}
 pub struct VertexAttribArray<T: GlType> {
     id: u32,
     divisor: Option<u32>,

@@ -1,125 +1,25 @@
+mod hexgrid;
 mod render;
+use hexgrid::HexGridBuilder;
 
-use gl::types::*;
+use cgmath::{Vector2, Zero};
 use glutin::{
+    dpi::PhysicalPosition,
     event_loop::{EventLoop, EventLoopProxy},
     window::WindowBuilder,
     ContextBuilder,
 };
-use std::os::raw::c_void;
 use tokio::runtime::Runtime;
 
 pub enum NetworkEvent {}
 
 async fn other(_: EventLoopProxy<NetworkEvent>) {}
 
-struct HexGridBuilder<'a> {
-    outer_radius: u32,
-    point_up: bool,
-    tiles: &'a [image::DynamicImage],
-    dimensions: (u32, u32),
-}
-
-impl<'a> Default for HexGridBuilder<'a> {
-    fn default() -> Self {
-        Self {
-            outer_radius: 0,
-            point_up: false,
-            tiles: &[],
-            dimensions: (0, 0),
-        }
-    }
-}
-
-impl<'a> HexGridBuilder<'a> {
-    fn with_tiles(mut self, tiles: &'a [image::DynamicImage]) -> Self {
-        self.tiles = tiles;
-        self
-    }
-    fn build(self) -> HexGrid {
-        let mut texture = render::texture::Texture2D::with_dimensions(
-            210 * self.tiles.len() as i32,
-            210,
-            render::texture::Format::Rgba,
-        );
-
-        for image in self.tiles.iter() {
-            texture.replace_rect(0, 0, image.clone());
-        }
-
-        let mut vao = render::VertexAttribObject::new();
-
-        let mut vbo: [render::VertexBuffer; 3] = render::VertexBuffer::new_array();
-        vbo[0].data(
-            &QUAD,
-            render::AccessFrequency::Static,
-            render::AccessType::Draw,
-        );
-        vao.vertex_attribute_array(
-            &vbo[0],
-            render::VertexAttribArray::<f32>::with_id(0).with_components_per_value(2),
-        );
-
-        let offsets = grid_coords(4, 4, 210f32);
-        vbo[1].data(
-            &offsets,
-            render::AccessFrequency::Static,
-            render::AccessType::Draw,
-        );
-        vao.vertex_attribute_array(
-            &vbo[1],
-            render::VertexAttribArray::<f32>::with_id(1)
-                .with_components_per_value(2)
-                .with_divisor(6),
-        );
-
-        let tiles = [
-            0f32, 0f32, 1f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32,
-            0f32, 0f32,
-        ];
-        vbo[2].data(
-            &tiles,
-            render::AccessFrequency::Dynamic,
-            render::AccessType::Draw,
-        );
-        vao.vertex_attribute_array(
-            &vbo[2],
-            render::VertexAttribArray::<f32>::with_id(2)
-                .with_components_per_value(2)
-                .with_divisor(6),
-        );
-        unimplemented!()
-    }
-}
-
-const QUAD: [f32; 3 * 2 * 2] = [0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0];
-
 const TEST_TILE1: &'static str = "tiles/Spaceland.Space/C. Anomalies/anom-008.png";
 const TEST_TILE2: &'static str = "tiles/Spaceland.Space/C. Anomalies/anom-004.png";
 
-struct HexGrid {
-    size: (u32, u32),
-    tile_size: (u32, u32),
-    vbo: [u32; 3],
-    vao: u32,
-    texture: render::texture::Texture2D,
-}
-
 const VERT: &str = include_str!("../resources/shaders/grid.vert");
 const FRAG: &str = include_str!("../resources/shaders/grid.frag");
-
-fn grid_coords(height: u32, width: u32, tile_size: f32) -> Vec<f32> {
-    let stepx = tile_size / 2f32 * 3f32.sqrt();
-    let stepy = stepx * 5.0 / 6.0;
-    let mut grid = Vec::new();
-    for row in 0..height {
-        for i in 0..width {
-            grid.push(i as f32 * stepx - if row % 2 == 0 { stepx / 2.0 } else { 0.0 });
-            grid.push(row as f32 * stepy);
-        }
-    }
-    grid
-}
 
 fn main() {
     let event_loop = EventLoop::with_user_event();
@@ -140,27 +40,22 @@ fn main() {
     let rt = Runtime::new().unwrap();
     rt.spawn(other(event_loop.create_proxy()));
 
-    let image1 = image::io::Reader::open(TEST_TILE1)
-        .unwrap()
-        .decode()
-        .unwrap();
-    let image2 = image::io::Reader::open(TEST_TILE2)
-        .unwrap()
-        .decode()
-        .unwrap();
-    let mut texture =
-        render::texture::Texture2D::with_dimensions(210 * 2, 210, render::texture::Format::Rgba);
-    texture.replace_rect(0, 0, image2.clone());
-    texture.replace_rect(210, 0, image1.clone());
+    let images = [
+        image::io::Reader::open(TEST_TILE1)
+            .unwrap()
+            .decode()
+            .unwrap(),
+        image::io::Reader::open(TEST_TILE2)
+            .unwrap()
+            .decode()
+            .unwrap(),
+    ];
 
-    let projection = cgmath::ortho(
-        0f32,
-        context.window().inner_size().width as f32,
-        0f32,
-        context.window().inner_size().height as f32,
-        -1f32,
-        100f32,
-    );
+    let hex_grid = HexGridBuilder::default()
+        .with_dimensions(50, 50)
+        .point_up()
+        .with_tiles(&images)
+        .build();
 
     let program = render::program::ProgramBuilder::default()
         .attach_shader(
@@ -174,66 +69,86 @@ fn main() {
         .link()
         .unwrap();
 
-    let mut vao = render::VertexAttribObject::new();
-
-    let mut vbo: [render::VertexBuffer; 3] = render::VertexBuffer::new_array();
-    vbo[0].data(
-        &QUAD,
-        render::AccessFrequency::Static,
-        render::AccessType::Draw,
-    );
-    vao.vertex_attribute_array(
-        &vbo[0],
-        render::VertexAttribArray::<f32>::with_id(0).with_components_per_value(2),
-    );
-
-    let offsets = grid_coords(4, 4, 210f32);
-    vbo[1].data(
-        &offsets,
-        render::AccessFrequency::Static,
-        render::AccessType::Draw,
-    );
-    vao.vertex_attribute_array(
-        &vbo[1],
-        render::VertexAttribArray::<f32>::with_id(1)
-            .with_components_per_value(2)
-            .with_divisor(6),
-    );
-
-    let tiles = [
-        0f32, 0f32, 1f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32,
+    let mut projection = cgmath::ortho(
         0f32,
-    ];
-    vbo[2].data(
-        &tiles,
-        render::AccessFrequency::Dynamic,
-        render::AccessType::Draw,
+        context.window().inner_size().width as f32,
+        0f32,
+        context.window().inner_size().height as f32,
+        -1f32,
+        100f32,
     );
-    vao.vertex_attribute_array(
-        &vbo[2],
-        render::VertexAttribArray::<f32>::with_id(2)
-            .with_components_per_value(2)
-            .with_divisor(6),
-    );
+    let mut scale = 1f32;
+    let mut scroll = Vector2::zero();
+    let mut mouse_position = PhysicalPosition::new(0.0, 0.0);
 
     event_loop.run(move |event, _, control_flow| unsafe {
-        draw(&program, projection, vao, &context);
-    });
-}
+        use glutin::event::{Event, MouseScrollDelta, WindowEvent};
+        *control_flow = glutin::event_loop::ControlFlow::Wait;
+        match event {
+            Event::NewEvents(_) => {}
+            Event::WindowEvent { window_id, event } => match event {
+                WindowEvent::CloseRequested => {
+                    *control_flow = glutin::event_loop::ControlFlow::Exit
+                }
+                WindowEvent::Resized(ps) => {
+                    context.resize(ps);
+                    projection =
+                        cgmath::ortho(0f32, ps.width as f32, 0f32, ps.height as f32, -1f32, 100f32);
+                    gl::Viewport(0, 0, ps.width as i32, ps.height as i32);
+                }
+                WindowEvent::CursorMoved { position, .. } => {
+                    mouse_position = position;
+                }
+                WindowEvent::MouseWheel { delta, .. } => {
+                    match delta {
+                        MouseScrollDelta::LineDelta(x, y) => {
+                            if scale >= 0.05 || y >= 0.0 {
+                                scale += y * 0.05;
+                            }
+                            let dims =
+                                Vector2::new(mouse_position.x as f32, mouse_position.y as f32)
+                                    - Vector2::new(
+                                        context.window().inner_size().width as f32,
+                                        context.window().inner_size().height as f32,
+                                    ) / 2.0;
+                            let d = scroll - dims;
+                            
+                            scroll -= d * (1.0 - (scale - y * 0.05)/scale);
 
-unsafe fn draw(
-    program: &render::Program,
-    projection: cgmath::Matrix4<f32>,
-    vao: render::VertexAttribObject,
-    context: &glutin::ContextWrapper<glutin::PossiblyCurrent, glutin::window::Window>,
-) {
-    gl::ClearColor(0.8, 0.8, 0.8, 1.0);
-    gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
-    program.bind();
-    program.uniform_mat4("projection", &projection);
-    program.uniform_vec2("size", [210f32, 210f32].into());
-    program.uniform_f32("ntiles", 2.0);
-    vao.bind();
-    gl::DrawArraysInstanced(gl::TRIANGLES, 0, 6 as i32, 6 * 16);
-    context.swap_buffers().unwrap();
+                            println!("{:?}", mouse_position);
+                            scroll +=
+                                Vector2::new(mouse_position.x as f32, mouse_position.y as f32)
+                                    * 0.05
+                                    * y;
+                        }
+                        MouseScrollDelta::PixelDelta(pp) => {
+                            println!("{:?}", pp);
+                        }
+                    }
+                    context.window().request_redraw();
+                }
+                _ => {}
+            },
+            Event::DeviceEvent { device_id, event } => {}
+            Event::UserEvent(_) => {}
+            Event::Suspended => {}
+            Event::Resumed => {}
+            Event::MainEventsCleared => {}
+            Event::RedrawRequested(_) => {
+                gl::ClearColor(0.8, 0.8, 0.8, 1.0);
+                gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+                hex_grid.draw(
+                    &program,
+                    projection
+                        * cgmath::Matrix4::from_translation(cgmath::Vector3::new(
+                            scroll.x, scroll.y, 0f32,
+                        ))
+                        * cgmath::Matrix4::from_nonuniform_scale(scale, scale, 1.0),
+                );
+                context.swap_buffers().unwrap();
+            }
+            Event::RedrawEventsCleared => {}
+            Event::LoopDestroyed => {}
+        }
+    });
 }

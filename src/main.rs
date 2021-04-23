@@ -2,7 +2,7 @@ mod hexgrid;
 mod render;
 use hexgrid::HexGridBuilder;
 
-use cgmath::{Vector2, Zero};
+use cgmath::{Matrix4, SquareMatrix, Vector2, Vector3, Vector4, Zero};
 use glutin::{
     dpi::PhysicalPosition,
     event_loop::{EventLoop, EventLoopProxy},
@@ -80,6 +80,7 @@ fn main() {
     let mut scale = 1f32;
     let mut scroll = Vector2::zero();
     let mut mouse_position = PhysicalPosition::new(0.0, 0.0);
+    let mut drag = false;
 
     event_loop.run(move |event, _, control_flow| unsafe {
         use glutin::event::{Event, MouseScrollDelta, WindowEvent};
@@ -96,33 +97,65 @@ fn main() {
                         cgmath::ortho(0f32, ps.width as f32, 0f32, ps.height as f32, -1f32, 100f32);
                     gl::Viewport(0, 0, ps.width as i32, ps.height as i32);
                 }
+                WindowEvent::MouseInput {
+                    button: winit::event::MouseButton::Left,
+                    state,
+                    ..
+                } => {
+                    drag = (state == winit::event::ElementState::Pressed);
+                }
                 WindowEvent::CursorMoved { position, .. } => {
+                    if drag {
+                        let scroll_by = Matrix4::from_nonuniform_scale(scale, scale, 1.0)
+                            .invert()
+                            .unwrap()
+                            * Matrix4::from_translation(Vector3::new(
+                                (position.x - mouse_position.x) as f32,
+                                (mouse_position.y - position.y) as f32,
+                                0.0,
+                            ))
+                            * Vector4::new(0.0, 0.0, 0.0, 1.0);
+                        scroll += Vector2::new(scroll_by.x, scroll_by.y);
+                    }
                     mouse_position = position;
+                    context.window().request_redraw();
                 }
                 WindowEvent::MouseWheel { delta, .. } => {
                     match delta {
                         MouseScrollDelta::LineDelta(x, y) => {
+                            let old_zoom =
+                                cgmath::Matrix4::from_nonuniform_scale(scale, scale, 1.0);
                             if scale >= 0.05 || y >= 0.0 {
                                 scale += y * 0.05;
+                                let zoom =
+                                    cgmath::Matrix4::from_nonuniform_scale(scale, scale, 1.0);
+                                let mouse_relative = cgmath::Vector4::new(
+                                    mouse_position.x as f32
+                                        - context.window().inner_size().width as f32 / 2.0,
+                                    mouse_position.y as f32
+                                        - context.window().inner_size().height as f32 / 2.0,
+                                    0.0,
+                                    1.0,
+                                );
+                                let scroll_by = zoom.invert().unwrap()
+                                    * cgmath::Matrix4::from_translation(Vector3::new(
+                                        mouse_relative.x as f32,
+                                        -mouse_relative.y as f32,
+                                        0.0,
+                                    ))
+                                    * zoom
+                                    * old_zoom.invert().unwrap()
+                                    * Matrix4::from_translation(Vector3::new(
+                                        -mouse_relative.x as f32,
+                                        mouse_relative.y as f32,
+                                        0.0,
+                                    ))
+                                    * cgmath::Vector4::new(0.0, 0.0, 0.0, 1.0);
+                                scroll += Vector2::new(scroll_by.x, scroll_by.y);
                             }
-                            let dims =
-                                Vector2::new(mouse_position.x as f32, mouse_position.y as f32)
-                                    - Vector2::new(
-                                        context.window().inner_size().width as f32,
-                                        context.window().inner_size().height as f32,
-                                    ) / 2.0;
-                            let d = scroll - dims;
-                            
-                            scroll -= d * (1.0 - (scale - y * 0.05)/scale);
-
-                            println!("{:?}", mouse_position);
-                            scroll +=
-                                Vector2::new(mouse_position.x as f32, mouse_position.y as f32)
-                                    * 0.05
-                                    * y;
                         }
                         MouseScrollDelta::PixelDelta(pp) => {
-                            println!("{:?}", pp);
+                            println!("Gesture scroll not implemented {:?}", pp);
                         }
                     }
                     context.window().request_redraw();
@@ -140,10 +173,8 @@ fn main() {
                 hex_grid.draw(
                     &program,
                     projection
-                        * cgmath::Matrix4::from_translation(cgmath::Vector3::new(
-                            scroll.x, scroll.y, 0f32,
-                        ))
-                        * cgmath::Matrix4::from_nonuniform_scale(scale, scale, 1.0),
+                        * cgmath::Matrix4::from_translation(Vector3::new(scroll.x, scroll.y, 0f32))
+                        * cgmath::Matrix4::from_nonuniform_scale(scale, scale, 1.0)
                 );
                 context.swap_buffers().unwrap();
             }

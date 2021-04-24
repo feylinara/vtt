@@ -5,6 +5,7 @@ pub struct HexGridBuilder<'a> {
     point_up: bool,
     tiles: &'a [image::DynamicImage],
     dimensions: (u32, u32),
+    grid_contents: Option<Vec<isize>>,
 }
 
 impl<'a> Default for HexGridBuilder<'a> {
@@ -13,6 +14,7 @@ impl<'a> Default for HexGridBuilder<'a> {
             point_up: false,
             tiles: &[],
             dimensions: (0, 0),
+            grid_contents: None,
         }
     }
 }
@@ -22,7 +24,22 @@ impl<'a> HexGridBuilder<'a> {
         self.tiles = tiles;
         self
     }
-    pub fn build(self) -> HexGrid {
+    pub fn with_grid_contents(mut self, gc: &[Option<usize>]) -> Self {
+        self.grid_contents = Some(
+            gc.iter()
+                .map(|x| x.map(|x| x as isize).unwrap_or(-1))
+                .collect(),
+        );
+        self
+    }
+    pub fn build(mut self) -> HexGrid {
+        assert_eq!(
+            (self.dimensions.0 * self.dimensions.1) as usize,
+            self.grid_contents
+                .as_ref()
+                .map(|x| x.len())
+                .unwrap_or((self.dimensions.0 * self.dimensions.1) as usize)
+        );
         let mut texture = render::texture::Texture2D::with_dimensions(
             210 * self.tiles.len() as i32,
             210,
@@ -42,8 +59,8 @@ impl<'a> HexGridBuilder<'a> {
 
         let vao = render::VertexAttribObject::new();
 
-        let vbos: [render::VertexBuffer; 3] = render::VertexBuffer::new_array();
-        vbos[0].data(
+        let mut vbos: [render::VertexBuffer; 3] = render::VertexBuffer::new_array();
+        vbos[0].alloc_with(
             &QUAD,
             render::AccessFrequency::Static,
             render::AccessType::Draw,
@@ -55,7 +72,7 @@ impl<'a> HexGridBuilder<'a> {
 
         println!("{:?}", self.dimensions);
         let offsets = grid_coords(self.dimensions.0, self.dimensions.1, tile_size as f32);
-        vbos[1].data(
+        vbos[1].alloc_with(
             &offsets,
             render::AccessFrequency::Static,
             render::AccessType::Draw,
@@ -67,9 +84,19 @@ impl<'a> HexGridBuilder<'a> {
                 .with_divisor(6),
         );
 
-        let tiles = vec![0f32; (self.dimensions.0 * self.dimensions.1) as usize];
-        vbos[2].data(
-            &tiles,
+        let dims = self.dimensions;
+        self.grid_contents = Some(
+            self.grid_contents
+                .unwrap_or_else(|| vec![0isize; (dims.0 * dims.1) as usize]),
+        );
+        vbos[2].alloc_with(
+            &(self
+                .grid_contents
+                .as_ref()
+                .unwrap()
+                .iter()
+                .map(|x| *x as f32)
+                .collect::<Vec<_>>()),
             render::AccessFrequency::Dynamic,
             render::AccessType::Draw,
         );
@@ -84,6 +111,7 @@ impl<'a> HexGridBuilder<'a> {
             vao,
             texture,
             tilecount: self.tiles.len() as u32,
+            grid_contents: self.grid_contents.unwrap(),
         }
     }
 
@@ -107,6 +135,7 @@ pub struct HexGrid {
     vao: render::VertexAttribObject,
     texture: render::texture::Texture2D,
     tilecount: u32,
+    grid_contents: Vec<isize>,
 }
 
 impl Drop for HexGrid {
@@ -148,5 +177,13 @@ impl HexGrid {
             6 as i32,
             (self.dimensions.0 * self.dimensions.1 * 6) as i32,
         );
+    }
+
+    pub fn update_tile(&mut self, idx: (usize, usize), tile: Option<usize>) {
+        let idx = idx.1 + self.dimensions.1 as usize * idx.0;
+        let tile = tile.map(|x| x as isize).unwrap_or(-1);
+        self.vbos[2].map_data().put(idx, tile as f32);
+        self.vbos[2].unmap_data();
+        self.grid_contents[idx] = tile;
     }
 }

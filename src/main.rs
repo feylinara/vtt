@@ -51,11 +51,13 @@ fn main() {
             .unwrap(),
     ];
 
-    let hex_grid = HexGridBuilder::default()
+    let mut hex_grid = HexGridBuilder::default()
         .with_dimensions(50, 50)
         .point_up()
         .with_tiles(&images)
         .build();
+    
+    hex_grid.update_tile((2, 1), Some(1));
 
     let program = render::program::ProgramBuilder::default()
         .attach_shader(
@@ -87,7 +89,7 @@ fn main() {
         *control_flow = glutin::event_loop::ControlFlow::Wait;
         match event {
             Event::NewEvents(_) => {}
-            Event::WindowEvent { window_id, event } => match event {
+            Event::WindowEvent { event, .. } => match event {
                 WindowEvent::CloseRequested => {
                     *control_flow = glutin::event_loop::ControlFlow::Exit
                 }
@@ -102,7 +104,7 @@ fn main() {
                     state,
                     ..
                 } => {
-                    drag = (state == winit::event::ElementState::Pressed);
+                    drag = state == winit::event::ElementState::Pressed;
                 }
                 WindowEvent::CursorMoved { position, .. } => {
                     if drag {
@@ -122,14 +124,8 @@ fn main() {
                 }
                 WindowEvent::MouseWheel { delta, .. } => {
                     match delta {
-                        MouseScrollDelta::LineDelta(x, y) => {
+                        MouseScrollDelta::LineDelta(_, y) => {
                             if scale >= 0.05 || y >= 0.0 {
-                                // let mouse_relative = cgmath::Vector2::new(
-                                //     mouse_position.x as f32
-                                //         - context.window().inner_size().width as f32 / 2.0,
-                                //     context.window().inner_size().height as f32 / 2.0
-                                //         - mouse_position.y as f32,
-                                // );
                                 let mouse = Vector2::new(
                                     mouse_position.x as f32,
                                     context.window().inner_size().height as f32
@@ -152,7 +148,7 @@ fn main() {
                 }
                 _ => {}
             },
-            Event::DeviceEvent { device_id, event } => {}
+            Event::DeviceEvent { .. } => {}
             Event::UserEvent(_) => {}
             Event::Suspended => {}
             Event::Resumed => {}

@@ -15,3 +15,4 @@ rmp-serde = "*"
 tokio = { version = "1", features = ["full"] }
 cgmath = "*"
 image = "*"
+itertools = "*"

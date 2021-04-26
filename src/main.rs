@@ -1,4 +1,5 @@
 mod hexgrid;
+mod hextoken;
 mod render;
 use hexgrid::HexGridBuilder;
 
@@ -56,7 +57,6 @@ fn main() {
         .point_up()
         .with_tiles(&images)
         .build();
-    
     hex_grid.update_tile((2, 1), Some(1));
 
     let program = render::program::ProgramBuilder::default()

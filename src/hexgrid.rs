@@ -170,7 +170,7 @@ impl HexGrid {
         );
         program.uniform_f32("ntiles", self.tilecount as f32);
         self.vao.bind();
-        self.texture.bind();
+        self.texture.bind(0);
         gl::DrawArraysInstanced(
             gl::TRIANGLES,
             0,

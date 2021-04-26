@@ -152,7 +152,7 @@ impl Texture2D {
     }
 
     pub fn replace_rect(&mut self, x: i32, y: i32, image: DynamicImage) {
-        self.bind();
+        self.bind(0);
         let image = prepare_image(image);
         let data = data_ptr(&image);
         let format = format(&image);
@@ -172,8 +172,9 @@ impl Texture2D {
         }
     }
 
-    pub fn bind(&self) {
+    pub fn bind(&self, idx: u32) {
         unsafe {
+            gl::ActiveTexture(gl::TEXTURE0 + idx);
             gl::BindTexture(gl::TEXTURE_2D, self.id);
         }
     }

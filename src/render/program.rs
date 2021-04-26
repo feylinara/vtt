@@ -137,6 +137,24 @@ impl Program {
             gl::Uniform4fv(uniform_id, 1, uniform.as_ptr());
         }
     }
+    pub fn uniform_ivec2(&self, name: &str, uniform: Vector2<i32>) {
+        unsafe {
+            let uniform_id = self.get_uniform_location(name);
+            gl::Uniform2iv(uniform_id, 1, uniform.as_ptr());
+        }
+    }
+    pub fn uniform_ivec3(&self, name: &str, uniform: Vector3<i32>) {
+        unsafe {
+            let uniform_id = self.get_uniform_location(name);
+            gl::Uniform3iv(uniform_id, 1, uniform.as_ptr());
+        }
+    }
+    pub fn uniform_ivec4(&self, name: &str, uniform: Vector4<i32>) {
+        unsafe {
+            let uniform_id = self.get_uniform_location(name);
+            gl::Uniform4iv(uniform_id, 1, uniform.as_ptr());
+        }
+    }
     pub fn uniform_i32(&self, name: &str, uniform: i32) {
         unsafe {
             let uniform_id = self.get_uniform_location(name);

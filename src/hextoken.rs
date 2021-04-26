@@ -1,16 +1,24 @@
+use crate::render::{self, Program};
+use cgmath::Vector2;
+use image::{DynamicImage, GenericImageView};
 use itertools::Itertools;
-use crate::render;
+use render::{ProgramBuilder, Shader};
 
 const QUAD: [f32; 3 * 2 * 2] = [0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0];
+const VERT: &'static str = include_str!("../resources/shaders/token.vert");
+const FRAG: &'static str = include_str!("../resources/shaders/token.frag");
 
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct TokenHandle(usize);
 
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum CentredOn {
     Tile,
     Corner,
 }
 
 #[repr(u8)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Mask {
     None = 0,
     Behind = 1,
@@ -19,23 +27,27 @@ pub enum Mask {
 
 #[repr(C)]
 struct TokenUniform {
-    size: (f32, f32),
-    mask_size: (f32, f32),
+    size: Vector2<f32>,
+    mask_size: Vector2<f32>,
     mask: Mask,
 }
 
 pub struct TokenManager {
+    tile_size: u32,
     tokens: Vec<Token>,
     instances: Vec<TokenInstance>,
     vbos: [render::VertexBuffer; 2],
     vao: render::VertexAttribObject,
-    masks: Vec<crate::render::texture::Texture2D>,
+    masks: Vec<render::texture::Texture2D>,
+    needs_update: bool,
+    program: Program,
 }
 
 impl TokenManager {
-    pub fn new(tokens: &[Token]) -> Vec<TokenHandle> {
+    pub fn new(tile_size: u32, tokens: &[Token]) -> Result<(Self, Vec<TokenHandle>), String> {
         let vao = render::VertexAttribObject::new();
-        let mut vbos: [render::VertexBuffer; 3] = render::VertexBuffer::new_array();
+        let mut vbos: [render::VertexBuffer; 2] = render::VertexBuffer::new_array();
+
         vbos[0].alloc_with(
             &QUAD,
             render::AccessFrequency::Static,
@@ -46,35 +58,136 @@ impl TokenManager {
             render::VertexAttribArray::<f32>::with_id(0).with_components_per_value(2),
         );
 
-        (0..tokens.len()).map(|n| {TokenHandle(n)}).collect()
+        vao.vertex_attribute_array(
+            &vbos[1],
+            render::VertexAttribArray::<f32>::with_id(1)
+                .with_components_per_value(2)
+                .with_divisor(6),
+        );
+
+        let program = ProgramBuilder::default()
+            .attach_shader(Shader::from_source(render::ShaderType::Fragment, FRAG)?)
+            .attach_shader(Shader::from_source(render::ShaderType::Vertex, VERT)?)
+            .link()?;
+
+        Ok((
+            Self {
+                tokens: tokens.iter().cloned().collect(),
+                instances: Vec::new(),
+                vbos,
+                vao,
+                masks: Vec::new(),
+                tile_size,
+                needs_update: false,
+                program,
+            },
+            (0..tokens.len()).map(|n| TokenHandle(n)).collect(),
+        ))
     }
 
-    pub fn append_tokens(tokens: &[Token]) -> Vec<TokenHandle> {
+    pub fn append_tokens(&mut self, tokens: &[Token]) -> Vec<TokenHandle> {
         unimplemented!()
     }
-    pub fn append_instances(tokens: &[TokenInstance]) {
-        unimplemented!()
+    pub fn append_instances(&mut self, instances: &[TokenInstance]) {
+        self.instances.extend_from_slice(instances);
+        self.instances.sort_by_key(|instance| instance.token);
+        let data: Vec<_> = self
+            .instances
+            .iter()
+            .map(|x| x.coords.map(|x| x as f32))
+            .collect();
+        self.vbos[1].alloc_with(
+            &data,
+            render::AccessFrequency::Dynamic,
+            render::AccessType::Draw,
+        );
     }
 
-    pub fn find_instances_at(coords: (u32, u32)) -> impl Iterator<&mut TokenInstance> {
-        unimplemented!()
+    pub fn find_instances_at(
+        &mut self,
+        coords: Vector2<u32>,
+    ) -> impl Iterator<Item = &mut TokenInstance> {
+        self.needs_update = true;
+        self.instances
+            .iter_mut()
+            .filter(move |x| x.coords == coords)
     }
 
-    pub fn draw() -> impl Iterator<&mut TokenInstance> {
-        unimplemented!()
+    pub fn update(&mut self) {
+        if self.needs_update {
+            self.instances.sort_by_key(|instance| instance.token);
+            let data: Vec<_> = self.instances.iter().map(|x| x.coords).collect();
+            self.vbos[1].replace_sub_data(0, &data);
+        }
+    }
+
+    pub fn draw(&self, projection: cgmath::Matrix4<f32>) {
+        self.vao.bind();
+        self.program.bind();
+        let batches: Vec<_> = self
+            .instances
+            .iter()
+            .group_by(|instance| instance.token)
+            .into_iter()
+            .map(|g| (g.0, g.1.count()))
+            .collect();
+        self.program.uniform_mat4("projection", &projection);
+        let mut first = 0;
+        for (handle, batch_size) in batches {
+            let token = &self.tokens[handle.0];
+            self.program
+                .uniform_vec2("dimensions", token.dimensions.map(|x| x as f32));
+            token.texture.bind(0);
+            unsafe {
+                gl::DrawArraysInstanced(
+                    gl::TRIANGLES,
+                    first * 6,
+                    6 as i32,
+                    (batch_size * 6) as i32,
+                );
+            }
+            first += batch_size as i32;
+        }
+        unsafe {
+            let err = gl::GetError();
+            if err != gl::NO_ERROR {
+                println!("{}", err);
+            }
+        }
     }
 }
 
+#[derive(Clone)]
 pub struct Token {
-    texture: crate::render::texture::Texture2D,
-    dimensions: (u32, u32),
+    texture: render::texture::Texture2D,
+    dimensions: Vector2<u32>,
     nominal_size: u32,
     scale: bool,
     mask: Mask,
     centred_on: CentredOn,
 }
 
+impl Token {
+    pub fn new(
+        image: DynamicImage,
+        nominal_size: u32,
+        scale: bool,
+        mask: Mask,
+        centred_on: CentredOn,
+    ) -> Self {
+        Self {
+            dimensions: image.dimensions().into(),
+            texture: crate::render::texture::Texture2D::from_image(image),
+            nominal_size,
+            scale,
+            mask,
+            centred_on,
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct TokenInstance {
-    coords: (u32, u32),
-    token: TokenHandle,
+    pub coords: Vector2<u32>,
+    pub token: TokenHandle,
 }

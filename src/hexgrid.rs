@@ -89,6 +89,10 @@ impl<'a> HexGridBuilder<'a> {
             self.grid_contents
                 .unwrap_or_else(|| vec![0isize; (dims.0 * dims.1) as usize]),
         );
+        vao.vertex_attribute_array(
+            &vbos[2],
+            render::VertexAttribArray::<f32>::with_id(2).with_divisor(6),
+        );
         vbos[2].alloc_with(
             &(self
                 .grid_contents
@@ -100,10 +104,7 @@ impl<'a> HexGridBuilder<'a> {
             render::AccessFrequency::Dynamic,
             render::AccessType::Draw,
         );
-        vao.vertex_attribute_array(
-            &vbos[2],
-            render::VertexAttribArray::<f32>::with_id(2).with_divisor(6),
-        );
+
         HexGrid {
             dimensions: self.dimensions,
             tile_size,

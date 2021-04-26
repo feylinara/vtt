@@ -13,17 +13,17 @@ fn delete_texture<T: Texture>(texture: &mut T) {
     }
 }
 
-#[derive(Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct Texture1D {
     id: GLuint,
 }
 
-#[derive(Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct Texture2D {
     id: GLuint,
 }
 
-#[derive(Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct Texture3D {
     id: GLuint,
 }

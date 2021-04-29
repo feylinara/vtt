@@ -1,21 +1,21 @@
+pub mod framebuffer;
 pub mod program;
 pub mod texture;
-pub mod framebuffer;
 mod util;
 pub use self::program::{Program, ProgramBuilder, Shader, ShaderType};
 pub use util::UnalignedBuffer;
 
 use gl;
 use gl::types::GLuint;
-use std::os::raw::c_void;
+use std::{mem::MaybeUninit, os::raw::c_void};
 
 pub trait Bindable {
     fn bind(&self);
+    fn unbind(&self);
 }
 
 pub trait Buffer: Bindable {}
 
-#[derive(Copy, Clone)]
 pub struct VertexBuffer {
     id: GLuint,
     len: usize,
@@ -30,13 +30,15 @@ impl VertexBuffer {
         Self { id, len: 0 }
     }
     pub fn new_array<const N: usize>() -> [Self; N] {
-        let mut buffers = [Self { id: 0, len: 0 }; N];
         let mut ids = [0; N];
+        let mut buffers: [VertexBuffer; N] = unsafe { MaybeUninit::zeroed().assume_init() };
         unsafe {
             gl::GenBuffers(N as i32, &mut ids[0] as *mut GLuint as *mut GLuint);
         }
         for (buffer, id) in buffers.iter_mut().zip(ids.iter()) {
-            buffer.id = *id;
+            unsafe {
+                (buffer as *mut VertexBuffer).write(Self { id: *id, len: 0 });
+            }
         }
         buffers
     }
@@ -92,6 +94,11 @@ impl Bindable for VertexBuffer {
             gl::BindBuffer(gl::ARRAY_BUFFER, self.id);
         }
     }
+    fn unbind(&self) {
+        unsafe {
+            gl::BindBuffer(gl::ARRAY_BUFFER, 0);
+        }
+    }
 }
 
 impl Buffer for VertexBuffer {}
@@ -99,7 +106,7 @@ impl Buffer for VertexBuffer {}
 #[repr(transparent)]
 #[derive(Copy, Clone)]
 pub struct VertexAttribObject {
-    id: GLuint,
+    pub(in crate::render) id: GLuint,
 }
 
 impl VertexAttribObject {
@@ -116,12 +123,6 @@ impl VertexAttribObject {
             gl::GenVertexArrays(N as i32, &mut ids[0] as *mut Self as *mut GLuint);
         }
         ids
-    }
-
-    pub fn bind(&self) {
-        unsafe {
-            gl::BindVertexArray(self.id);
-        }
     }
 
     pub fn vertex_attribute_array<T: GlType>(
@@ -143,6 +144,19 @@ impl VertexAttribObject {
                 ptr.stride,
                 ptr.offset as *mut c_void,
             );
+        }
+    }
+}
+
+impl Bindable for VertexAttribObject {
+    fn bind(&self) {
+        unsafe {
+            gl::BindVertexArray(self.id);
+        }
+    }
+    fn unbind(&self) {
+        unsafe {
+            gl::BindVertexArray(0);
         }
     }
 }

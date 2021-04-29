@@ -10,7 +10,7 @@ pub struct ProgramBuilder {
 
 /// An OpenGL Program Object
 pub struct Program {
-    pub(super) id: GLuint,
+    pub(in crate::render) id: GLuint,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -29,7 +29,7 @@ impl Into<GLuint> for ShaderType {
 }
 
 pub struct Shader {
-    pub id: GLuint,
+    pub(in crate::render) id: GLuint,
 }
 
 impl Shader {

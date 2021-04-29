@@ -1,4 +1,4 @@
-use crate::render::{self, Program};
+use crate::render::{self, Bindable, Program};
 use cgmath::{InnerSpace, Vector2, Zero};
 use image::{DynamicImage, GenericImageView};
 use itertools::Itertools;
@@ -44,7 +44,7 @@ pub struct TokenManager {
 }
 
 impl TokenManager {
-    pub fn new(tile_size: f32, tokens: &[Token]) -> Result<(Self, Vec<TokenHandle>), String> {
+    pub fn new(tile_size: f32, tokens: impl IntoIterator<Item=Token>) -> Result<(Self, Vec<TokenHandle>), String> {
         let vao = render::VertexAttribObject::new();
         let mut vbos: [render::VertexBuffer; 2] = render::VertexBuffer::new_array();
 
@@ -70,9 +70,12 @@ impl TokenManager {
             .attach_shader(Shader::from_source(render::ShaderType::Vertex, VERT)?)
             .link()?;
 
+        let tokens: Vec<_> = tokens.into_iter().collect();
+        let len = tokens.len();
+
         Ok((
             Self {
-                tokens: tokens.iter().cloned().collect(),
+                tokens,
                 instances: Vec::new(),
                 vbos,
                 vao,
@@ -81,14 +84,14 @@ impl TokenManager {
                 needs_update: false,
                 program,
             },
-            (0..tokens.len()).map(|n| TokenHandle(n)).collect(),
+            (0..len).map(|n| TokenHandle(n)).collect(),
         ))
     }
 
-    pub fn append_tokens(&mut self, tokens: &[Token]) -> Vec<TokenHandle> {
-        let old_len = tokens.len();
-        self.tokens.extend_from_slice(tokens.clone());
-        (old_len..tokens.len()).map(|n| TokenHandle(n)).collect()
+    pub fn append_tokens(&mut self, tokens: impl IntoIterator<Item=Token>) -> Vec<TokenHandle> {
+        let old_len = self.tokens.len();
+        self.tokens.extend(tokens);
+        (old_len..self.tokens.len()).map(|n| TokenHandle(n)).collect()
     }
 
     pub fn append_instances(&mut self, instances: &[TokenInstance]) {
@@ -182,7 +185,6 @@ impl TokenManager {
     }
 }
 
-#[derive(Clone)]
 pub struct Token {
     texture: render::texture::Texture2D,
     dimensions: Vector2<u32>,

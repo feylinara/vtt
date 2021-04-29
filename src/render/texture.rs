@@ -15,17 +15,17 @@ fn delete_texture<T: Texture>(texture: &mut T) {
 
 #[derive(Clone, Eq, PartialEq)]
 pub struct Texture1D {
-    id: GLuint,
+    pub (in crate::render) id: GLuint,
 }
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Eq, PartialEq)]
 pub struct Texture2D {
-    id: GLuint,
+    pub (in crate::render) id: GLuint,
 }
 
 #[derive(Clone, Eq, PartialEq)]
 pub struct Texture3D {
-    id: GLuint,
+    pub (in crate::render) id: GLuint,
 }
 
 impl Texture for Texture2D {
@@ -175,6 +175,11 @@ impl Texture2D {
     pub fn bind(&self, idx: u32) {
         unsafe {
             gl::ActiveTexture(gl::TEXTURE0 + idx);
+            gl::BindTexture(gl::TEXTURE_2D, self.id);
+        }
+    }
+    pub fn bind_current(&self) {
+        unsafe {
             gl::BindTexture(gl::TEXTURE_2D, self.id);
         }
     }

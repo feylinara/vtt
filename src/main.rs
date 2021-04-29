@@ -93,13 +93,13 @@ fn main() {
         .unwrap();
     let (mut token_manger, token_ids) = TokenManager::new(
         210.0,
-        &[Token::new(
+        std::array::IntoIter::new([Token::new(
             token_image,
             0,
             true,
             Mask::None,
             CentredOn::Corner { point_up: true },
-        )],
+        )]),
     )
     .unwrap();
     token_manger.append_instances(&[TokenInstance {

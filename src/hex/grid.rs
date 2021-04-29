@@ -1,4 +1,4 @@
-use crate::render;
+use crate::render::{self, Bindable};
 use image::GenericImageView;
 
 pub struct HexGridBuilder<'a> {

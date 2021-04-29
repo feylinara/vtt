@@ -13,19 +13,19 @@ fn delete_texture<T: Texture>(texture: &mut T) {
     }
 }
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Eq, PartialEq)]
 pub struct Texture1D {
-    pub (in crate::render) id: GLuint,
+    pub(in crate::render) id: GLuint,
 }
 
 #[derive(Eq, PartialEq)]
 pub struct Texture2D {
-    pub (in crate::render) id: GLuint,
+    pub(in crate::render) id: GLuint,
 }
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Eq, PartialEq)]
 pub struct Texture3D {
-    pub (in crate::render) id: GLuint,
+    pub(in crate::render) id: GLuint,
 }
 
 impl Texture for Texture2D {
@@ -77,13 +77,13 @@ fn prepare_image(image: DynamicImage) -> DynamicImage {
 }
 
 fn data_ptr(image: &DynamicImage) -> *const c_void {
-    (match &image {
+    match &image {
         DynamicImage::ImageRgb8(img) => img.as_ptr() as *const c_void,
         DynamicImage::ImageRgba8(img) => img.as_ptr() as *const c_void,
         DynamicImage::ImageBgr8(img) => img.as_ptr() as *const c_void,
         DynamicImage::ImageBgra8(img) => img.as_ptr() as *const c_void,
         _ => panic!("render::texture::data_ptr called with non-converted image"),
-    })
+    }
 }
 fn format(image: &DynamicImage) -> Format {
     match &image {

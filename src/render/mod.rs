@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 pub mod framebuffer;
 pub mod program;
 pub mod texture;
@@ -5,7 +7,6 @@ mod util;
 pub use self::program::{Program, ProgramBuilder, Shader, ShaderType};
 pub use util::UnalignedBuffer;
 
-use gl;
 use gl::types::GLuint;
 use std::{mem::MaybeUninit, os::raw::c_void};
 
@@ -104,7 +105,6 @@ impl Bindable for VertexBuffer {
 impl Buffer for VertexBuffer {}
 
 #[repr(transparent)]
-#[derive(Copy, Clone)]
 pub struct VertexAttribObject {
     pub(in crate::render) id: GLuint,
 }
@@ -118,7 +118,7 @@ impl VertexAttribObject {
         Self { id }
     }
     pub fn new_array<const N: usize>() -> [Self; N] {
-        let mut ids = [Self { id: 0 }; N];
+        let mut ids: [Self; N] = unsafe { MaybeUninit::zeroed().assume_init() };
         unsafe {
             gl::GenVertexArrays(N as i32, &mut ids[0] as *mut Self as *mut GLuint);
         }
@@ -134,8 +134,9 @@ impl VertexAttribObject {
         buffer.bind();
         unsafe {
             gl::EnableVertexAttribArray(ptr.id);
-            ptr.divisor
-                .map(|divisor| gl::VertexAttribDivisor(ptr.id, divisor));
+            if let Some(divisor) = ptr.divisor {
+                gl::VertexAttribDivisor(ptr.id, divisor)
+            }
             gl::VertexAttribPointer(
                 ptr.id,
                 ptr.ncomponents,

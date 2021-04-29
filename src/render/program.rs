@@ -19,9 +19,9 @@ pub enum ShaderType {
     Fragment,
 }
 
-impl Into<GLuint> for ShaderType {
-    fn into(self) -> GLenum {
-        match self {
+impl From<ShaderType> for GLenum {
+    fn from(shader_type: ShaderType) -> GLenum {
+        match shader_type {
             ShaderType::Vertex => gl::VERTEX_SHADER,
             ShaderType::Fragment => gl::FRAGMENT_SHADER,
         }

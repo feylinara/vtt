@@ -1,12 +1,12 @@
 use crate::render::{self, Bindable, Program};
-use cgmath::{InnerSpace, Vector2, Zero};
+use cgmath::{Vector2, Zero};
 use image::{DynamicImage, GenericImageView};
 use itertools::Itertools;
 use render::{ProgramBuilder, Shader};
 
 const QUAD: [f32; 3 * 2 * 2] = [0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0];
-const VERT: &'static str = include_str!("../../resources/shaders/token.vert");
-const FRAG: &'static str = include_str!("../../resources/shaders/token.frag");
+const VERT: &str = include_str!("../../resources/shaders/token.vert");
+const FRAG: &str = include_str!("../../resources/shaders/token.frag");
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct TokenHandle(usize);
@@ -84,14 +84,14 @@ impl TokenManager {
                 needs_update: false,
                 program,
             },
-            (0..len).map(|n| TokenHandle(n)).collect(),
+            (0..len).map(TokenHandle).collect(),
         ))
     }
 
     pub fn append_tokens(&mut self, tokens: impl IntoIterator<Item=Token>) -> Vec<TokenHandle> {
         let old_len = self.tokens.len();
         self.tokens.extend(tokens);
-        (old_len..self.tokens.len()).map(|n| TokenHandle(n)).collect()
+        (old_len..self.tokens.len()).map(TokenHandle).collect()
     }
 
     pub fn append_instances(&mut self, instances: &[TokenInstance]) {
@@ -176,7 +176,7 @@ impl TokenManager {
                 gl::DrawArraysInstanced(
                     gl::TRIANGLES,
                     first * 6,
-                    6 as i32,
+                    6i32,
                     (batch_size * 6) as i32,
                 );
             }

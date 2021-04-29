@@ -9,11 +9,11 @@ impl<T> UnalignedBuffer<T> {
     }
     pub fn get(&self, idx: usize) -> T {
         assert!(idx < self.length);
-        unsafe { self.ptr.offset(idx as isize).read_unaligned() }
+        unsafe { self.ptr.add(idx).read_unaligned() }
     }
     pub fn put(&self, idx: usize, item: T) {
         assert!(idx < self.length);
-        unsafe { self.ptr.offset(idx as isize).write_unaligned(item) }
+        unsafe { self.ptr.add(idx).write_unaligned(item) }
     }
 }
 impl<T: Copy> UnalignedBuffer<T> {

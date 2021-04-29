@@ -1,13 +1,21 @@
 use std::mem::MaybeUninit;
 
+use gl::types::GLuint;
 use gl::{self, types::GLenum};
-use gl::{types::GLuint, ReadBuffer};
 
 use super::texture::Texture2D;
 
 #[repr(transparent)]
 pub struct FrameBuffer {
     pub(in crate::render) id: GLuint,
+}
+
+impl Drop for FrameBuffer {
+    fn drop(&mut self) {
+        unsafe {
+            gl::DeleteFramebuffers(1, &self.id as *const _);
+        }
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -18,9 +26,9 @@ pub enum Attachment {
     DepthStencil,
 }
 
-impl Into<GLenum> for Attachment {
-    fn into(self) -> GLenum {
-        match self {
+impl From<Attachment> for GLenum {
+    fn from(attachment: Attachment) -> GLenum {
+        match attachment {
             Attachment::Color(x) => gl::COLOR_ATTACHMENT0 + x,
             Attachment::Depth => gl::DEPTH_ATTACHMENT,
             Attachment::Stencil => gl::STENCIL_ATTACHMENT,
@@ -46,7 +54,7 @@ impl FrameBuffer {
         buffers
     }
 
-    pub fn attach_texture2D(texture: &Texture2D, attachment: Attachment) {
+    pub fn attach_texture2d(texture: &Texture2D, attachment: Attachment) {
         texture.bind_current();
         unsafe { gl::FramebufferTexture(gl::FRAMEBUFFER, attachment.into(), gl::TEXTURE_2D, 0) }
     }
@@ -105,6 +113,14 @@ impl RenderBuffer {
     pub fn unbind(&self) {
         unsafe {
             gl::BindRenderbuffer(gl::RENDERBUFFER, 0);
+        }
+    }
+}
+
+impl Drop for RenderBuffer {
+    fn drop(&mut self) {
+        unsafe {
+            gl::DeleteRenderbuffers(1, &self.id as *const _);
         }
     }
 }

@@ -159,7 +159,7 @@ impl HexGrid {
         gl::DrawArraysInstanced(
             gl::TRIANGLES,
             0,
-            6 as i32,
+            6i32,
             (self.dimensions.0 * self.dimensions.1 * 6) as i32,
         );
     }

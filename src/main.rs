@@ -17,10 +17,10 @@ pub enum NetworkEvent {}
 
 async fn other(_: EventLoopProxy<NetworkEvent>) {}
 
-const TEST_TILE1: &'static str = "tiles/Spaceland.Space/C. Anomalies/anom-008.png";
-const TEST_TILE2: &'static str = "tiles/Spaceland.Space/C. Anomalies/anom-004.png";
+const TEST_TILE1: &str = "tiles/Spaceland.Space/C. Anomalies/anom-008.png";
+const TEST_TILE2: &str = "tiles/Spaceland.Space/C. Anomalies/anom-004.png";
 
-const TEST_TOKEN: &'static str = "mechs/HA GENGHIS.png";
+const TEST_TOKEN: &str = "mechs/HA GENGHIS.png";
 
 const VERT: &str = include_str!("../resources/shaders/grid.vert");
 const FRAG: &str = include_str!("../resources/shaders/grid.frag");
@@ -190,7 +190,6 @@ fn main() {
                         * cgmath::Matrix4::from_nonuniform_scale(scale, scale, 1.0)
                         * cgmath::Matrix4::from_translation(Vector3::new(scroll.x, scroll.y, 0f32)),
                 );
-                unsafe {
                     let mut err = gl::GetError();
                     while err != gl::NO_ERROR {
                         println!(
@@ -204,7 +203,6 @@ fn main() {
                         );
                         err = gl::GetError();
                     }
-                }
                 context.swap_buffers().unwrap();
             }
             Event::RedrawEventsCleared => {}

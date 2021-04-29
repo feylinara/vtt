@@ -1,7 +1,8 @@
-mod hexgrid;
-mod hextoken;
+mod hex;
+use hex::grid::HexGridBuilder;
+use hex::token::{CentredOn, Mask, Token, TokenInstance, TokenManager};
+
 mod render;
-use hexgrid::HexGridBuilder;
 
 use cgmath::{Matrix3, Matrix4, SquareMatrix, Vector2, Vector3, Vector4, Zero};
 use glutin::{
@@ -10,7 +11,6 @@ use glutin::{
     window::WindowBuilder,
     ContextBuilder,
 };
-use hextoken::{CentredOn, Mask, Token, TokenInstance, TokenManager};
 use tokio::runtime::Runtime;
 
 pub enum NetworkEvent {}
@@ -20,7 +20,7 @@ async fn other(_: EventLoopProxy<NetworkEvent>) {}
 const TEST_TILE1: &'static str = "tiles/Spaceland.Space/C. Anomalies/anom-008.png";
 const TEST_TILE2: &'static str = "tiles/Spaceland.Space/C. Anomalies/anom-004.png";
 
-const TEST_TOKEN: &'static str = "tiles/Spaceland.Space/C. Anomalies/anom-009.png";
+const TEST_TOKEN: &'static str = "mechs/HA GENGHIS.png";
 
 const VERT: &str = include_str!("../resources/shaders/grid.vert");
 const FRAG: &str = include_str!("../resources/shaders/grid.frag");
@@ -92,18 +92,18 @@ fn main() {
         .decode()
         .unwrap();
     let (mut token_manger, token_ids) = TokenManager::new(
-        210,
+        210.0,
         &[Token::new(
             token_image,
             0,
-            false,
+            true,
             Mask::None,
-            CentredOn::Tile,
+            CentredOn::Corner { point_up: true },
         )],
     )
     .unwrap();
     token_manger.append_instances(&[TokenInstance {
-        coords: (10, 10).into(),
+        coords: (3, 2).into(),
         token: token_ids[0],
     }]);
 
@@ -190,6 +190,21 @@ fn main() {
                         * cgmath::Matrix4::from_nonuniform_scale(scale, scale, 1.0)
                         * cgmath::Matrix4::from_translation(Vector3::new(scroll.x, scroll.y, 0f32)),
                 );
+                unsafe {
+                    let mut err = gl::GetError();
+                    while err != gl::NO_ERROR {
+                        println!(
+                            "Uncaught OpenGl Error: {}",
+                            match err {
+                                gl::INVALID_ENUM => "invalid enum".to_string(),
+                                gl::INVALID_VALUE => "invalid value".to_string(),
+                                gl::INVALID_OPERATION => "invalid operation".to_string(),
+                                x => format!("{}", x),
+                            }
+                        );
+                        err = gl::GetError();
+                    }
+                }
                 context.swap_buffers().unwrap();
             }
             Event::RedrawEventsCleared => {}

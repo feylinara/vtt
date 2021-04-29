@@ -1,12 +1,12 @@
 use crate::render::{self, Program};
-use cgmath::Vector2;
+use cgmath::{InnerSpace, Vector2, Zero};
 use image::{DynamicImage, GenericImageView};
 use itertools::Itertools;
 use render::{ProgramBuilder, Shader};
 
 const QUAD: [f32; 3 * 2 * 2] = [0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0];
-const VERT: &'static str = include_str!("../resources/shaders/token.vert");
-const FRAG: &'static str = include_str!("../resources/shaders/token.frag");
+const VERT: &'static str = include_str!("../../resources/shaders/token.vert");
+const FRAG: &'static str = include_str!("../../resources/shaders/token.frag");
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct TokenHandle(usize);
@@ -14,7 +14,7 @@ pub struct TokenHandle(usize);
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum CentredOn {
     Tile,
-    Corner,
+    Corner { point_up: bool },
 }
 
 #[repr(u8)]
@@ -33,7 +33,7 @@ struct TokenUniform {
 }
 
 pub struct TokenManager {
-    tile_size: u32,
+    tile_size: f32,
     tokens: Vec<Token>,
     instances: Vec<TokenInstance>,
     vbos: [render::VertexBuffer; 2],
@@ -44,7 +44,7 @@ pub struct TokenManager {
 }
 
 impl TokenManager {
-    pub fn new(tile_size: u32, tokens: &[Token]) -> Result<(Self, Vec<TokenHandle>), String> {
+    pub fn new(tile_size: f32, tokens: &[Token]) -> Result<(Self, Vec<TokenHandle>), String> {
         let vao = render::VertexAttribObject::new();
         let mut vbos: [render::VertexBuffer; 2] = render::VertexBuffer::new_array();
 
@@ -86,15 +86,24 @@ impl TokenManager {
     }
 
     pub fn append_tokens(&mut self, tokens: &[Token]) -> Vec<TokenHandle> {
-        unimplemented!()
+        let old_len = tokens.len();
+        self.tokens.extend_from_slice(tokens.clone());
+        (old_len..tokens.len()).map(|n| TokenHandle(n)).collect()
     }
+
     pub fn append_instances(&mut self, instances: &[TokenInstance]) {
         self.instances.extend_from_slice(instances);
         self.instances.sort_by_key(|instance| instance.token);
         let data: Vec<_> = self
             .instances
             .iter()
-            .map(|x| x.coords.map(|x| x as f32))
+            .map(|x| {
+                super::grid_to_world(x.coords, self.tile_size)
+                    + match self.tokens[x.token.0].centred_on {
+                        CentredOn::Tile => Vector2::zero(),
+                        CentredOn::Corner { .. } => super::corner_offset(self.tile_size, 0),
+                    }
+            })
             .collect();
         self.vbos[1].alloc_with(
             &data,
@@ -116,7 +125,17 @@ impl TokenManager {
     pub fn update(&mut self) {
         if self.needs_update {
             self.instances.sort_by_key(|instance| instance.token);
-            let data: Vec<_> = self.instances.iter().map(|x| x.coords).collect();
+            let data: Vec<_> = self
+                .instances
+                .iter()
+                .map(|x| {
+                    super::grid_to_world(x.coords, self.tile_size)
+                        + match self.tokens[x.token.0].centred_on {
+                            CentredOn::Tile => Vector2::zero(),
+                            CentredOn::Corner { .. } => super::corner_offset(self.tile_size, 0),
+                        }
+                })
+                .collect();
             self.vbos[1].replace_sub_data(0, &data);
         }
     }
@@ -135,9 +154,21 @@ impl TokenManager {
         let mut first = 0;
         for (handle, batch_size) in batches {
             let token = &self.tokens[handle.0];
-            self.program
-                .uniform_vec2("dimensions", token.dimensions.map(|x| x as f32));
+            self.program.uniform_vec2(
+                "dimensions",
+                if token.scale {
+                    let Vector2 { x, y } = token.dimensions;
+                    (if x > y {
+                        Vector2::new(1.0, y as f32 / x as f32)
+                    } else {
+                        Vector2::new(x as f32 / y as f32, 1.0)
+                    }) * self.tile_size
+                } else {
+                    token.dimensions.map(|x| x as f32)
+                },
+            );
             token.texture.bind(0);
+            self.program.uniform_i32("token", 0);
             unsafe {
                 gl::DrawArraysInstanced(
                     gl::TRIANGLES,
@@ -147,12 +178,6 @@ impl TokenManager {
                 );
             }
             first += batch_size as i32;
-        }
-        unsafe {
-            let err = gl::GetError();
-            if err != gl::NO_ERROR {
-                println!("{}", err);
-            }
         }
     }
 }

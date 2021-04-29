@@ -40,19 +40,17 @@ impl<'a> HexGridBuilder<'a> {
                 .map(|x| x.len())
                 .unwrap_or((self.dimensions.0 * self.dimensions.1) as usize)
         );
-        let mut texture = render::texture::Texture2D::with_dimensions(
-            210 * self.tiles.len() as i32,
-            210,
-            render::texture::Format::Rgba,
-        );
-
         let tile_size = self
             .tiles
             .iter()
             .map(|image| u32::max(image.dimensions().0, image.dimensions().1))
             .max()
             .unwrap_or(0);
-
+        let mut texture = render::texture::Texture2D::with_dimensions(
+            tile_size as i32 * self.tiles.len() as i32,
+            tile_size as i32,
+            render::texture::Format::Rgba,
+        );
         for (n, image) in self.tiles.iter().enumerate() {
             texture.replace_rect((n as u32 * tile_size) as i32, 0, image.clone());
         }
@@ -70,8 +68,7 @@ impl<'a> HexGridBuilder<'a> {
             render::VertexAttribArray::<f32>::with_id(0).with_components_per_value(2),
         );
 
-        println!("{:?}", self.dimensions);
-        let offsets = grid_coords(self.dimensions.0, self.dimensions.1, tile_size as f32);
+        let offsets = super::grid_coords(self.dimensions.0, self.dimensions.1, tile_size as f32);
         vbos[1].alloc_with(
             &offsets,
             render::AccessFrequency::Static,
@@ -146,19 +143,6 @@ impl Drop for HexGrid {
         }
         // TODO: delete everything else
     }
-}
-
-fn grid_coords(height: u32, width: u32, tile_size: f32) -> Vec<f32> {
-    let stepx = tile_size / 2f32 * 3f32.sqrt();
-    let stepy = stepx * 5.0 / 6.0;
-    let mut grid = Vec::new();
-    for row in 0..height {
-        for i in 0..width {
-            grid.push(i as f32 * stepx - if row % 2 == 0 { stepx / 2.0 } else { 0.0 });
-            grid.push(row as f32 * stepy);
-        }
-    }
-    grid
 }
 
 impl HexGrid {

@@ -8,5 +8,4 @@ out vec4 color;
 
 void main() {
     color = texture2D(token, texpos);
-    // color = vec4(1.0, 0.3, 0.8, 1.0);
 }

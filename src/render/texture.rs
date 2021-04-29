@@ -115,7 +115,7 @@ impl Texture2D {
             gl::TexImage2D(
                 gl::TEXTURE_2D,
                 0,
-                gl::RGB8 as i32,
+                format.into_internal_format(),
                 image.width() as i32,
                 image.height() as i32,
                 0,
@@ -177,11 +177,5 @@ impl Texture2D {
             gl::ActiveTexture(gl::TEXTURE0 + idx);
             gl::BindTexture(gl::TEXTURE_2D, self.id);
         }
-    }
-}
-
-impl Drop for Texture2D {
-    fn drop(&mut self) {
-        delete_texture(self);
     }
 }

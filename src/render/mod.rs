@@ -1,5 +1,6 @@
 pub mod program;
 pub mod texture;
+pub mod framebuffer;
 mod util;
 pub use self::program::{Program, ProgramBuilder, Shader, ShaderType};
 pub use util::UnalignedBuffer;

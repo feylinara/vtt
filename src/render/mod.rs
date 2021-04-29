@@ -22,6 +22,14 @@ pub struct VertexBuffer {
     len: usize,
 }
 
+impl Drop for VertexBuffer {
+    fn drop(&mut self) {
+        unsafe {
+            gl::DeleteBuffers(1, &self.id as *const _)
+        }
+    }
+}
+
 impl VertexBuffer {
     pub fn new() -> Self {
         let mut id = 0;
@@ -278,5 +286,13 @@ impl<T: GlType> VertexAttribArray<T> {
     pub fn with_offset(mut self, offset: i32) -> Self {
         self.offset = offset;
         self
+    }
+}
+
+impl Drop for VertexAttribObject {
+    fn drop(&mut self) {
+        unsafe {
+            gl::DeleteVertexArrays(1, &self.id as *const _)
+        }
     }
 }

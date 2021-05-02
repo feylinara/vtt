@@ -54,12 +54,14 @@ impl FrameBuffer {
         buffers
     }
 
-    pub fn attach_texture2d(texture: &Texture2D, attachment: Attachment) {
-        texture.bind_current();
-        unsafe { gl::FramebufferTexture(gl::FRAMEBUFFER, attachment.into(), gl::TEXTURE_2D, 0) }
+    pub fn attach_texture2d(&self, texture: &Texture2D, attachment: Attachment) {
+        self.bind();
+        unsafe { gl::FramebufferTexture(gl::FRAMEBUFFER, attachment.into(), texture.id, 0) }
+        self.unbind();
     }
 
-    pub fn attach_renderbuffer(renderbuffer: &RenderBuffer, attachment: Attachment) {
+    pub fn attach_renderbuffer(&self, renderbuffer: &RenderBuffer, attachment: Attachment) {
+        self.bind();
         renderbuffer.bind();
         unsafe {
             gl::FramebufferRenderbuffer(
@@ -69,18 +71,36 @@ impl FrameBuffer {
                 renderbuffer.id,
             )
         }
+        self.unbind();
     }
 
     pub fn bind(&self) {
         unsafe {
-            gl::BindBuffer(gl::FRAMEBUFFER, self.id);
+            gl::BindFramebuffer(gl::FRAMEBUFFER, self.id);
         }
     }
 
     pub fn unbind(&self) {
         unsafe {
-            gl::BindBuffer(gl::FRAMEBUFFER, 0);
+            gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
         }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum Format {
+    Rgba,
+    Depth,
+    DepthStencil,
+}
+
+impl Format {
+    fn into_internal_format(self) -> u32 {
+        (match self {
+            Self::Rgba => gl::RGBA8,
+            Self::Depth => gl::DEPTH_COMPONENT16,
+            Self::DepthStencil => gl::DEPTH24_STENCIL8,
+        })
     }
 }
 
@@ -103,6 +123,19 @@ impl RenderBuffer {
             gl::GenRenderbuffers(N as i32, &mut buffers[0] as *mut Self as *mut GLuint);
         }
         buffers
+    }
+
+    pub fn alloc(&self, width: u32, height: u32, format: Format, samples: u32) {
+        self.bind();
+        unsafe {
+            gl::RenderbufferStorageMultisample(
+                gl::RENDERBUFFER,
+                samples as i32,
+                format.into_internal_format(),
+                width as i32,
+                height as i32,
+            );
+        }
     }
 
     pub fn bind(&self) {

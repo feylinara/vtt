@@ -8,11 +8,12 @@ edition = "2018"
 
 [dependencies]
 gl = "*"
-winit = "*"
 glutin = "*"
+winit = "*"
+tokio = { version = "1", features = ["full"] }
 serde = "*"
 rmp-serde = "*"
-tokio = { version = "1", features = ["full"] }
+tokio-serde = "*"
 cgmath = "*"
 image = "*"
 itertools = "*"

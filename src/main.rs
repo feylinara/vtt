@@ -27,10 +27,11 @@ const FRAG: &str = include_str!("../resources/shaders/grid.frag");
 
 fn main() {
     let event_loop = EventLoop::with_user_event();
-    let window = WindowBuilder::new();
+    let window_builder = WindowBuilder::new();
     let context = unsafe {
         ContextBuilder::new()
-            .build_windowed(window, &event_loop)
+            .with_vsync(true)
+            .build_windowed(window_builder, &event_loop)
             .unwrap()
             .make_current()
             .unwrap()
@@ -106,6 +107,22 @@ fn main() {
         coords: (3, 2).into(),
         token: token_ids[0],
     }]);
+
+    let fb = crate::render::framebuffer::FrameBuffer::new();
+    let rb = crate::render::framebuffer::RenderBuffer::new();
+    rb.alloc(
+        context.window().inner_size().width,
+        context.window().inner_size().height,
+        crate::render::framebuffer::Format::DepthStencil,
+        0,
+    );
+    fb.attach_renderbuffer(&rb, crate::render::framebuffer::Attachment::DepthStencil);
+    let t = render::texture::Texture2D::with_dimensions(
+        context.window().inner_size().width as i32,
+        context.window().inner_size().height as i32,
+        crate::render::texture::Format::Rgba,
+    );
+    fb.attach_texture2d(&t, crate::render::framebuffer::Attachment::Color(0));
 
     event_loop.run(move |event, _, control_flow| unsafe {
         use glutin::event::{Event, MouseScrollDelta, WindowEvent};
@@ -185,24 +202,26 @@ fn main() {
                         * cgmath::Matrix4::from_nonuniform_scale(scale, scale, 1.0)
                         * cgmath::Matrix4::from_translation(Vector3::new(scroll.x, scroll.y, 0f32)),
                 );
+                fb.bind();
                 token_manger.draw(
                     projection
                         * cgmath::Matrix4::from_nonuniform_scale(scale, scale, 1.0)
                         * cgmath::Matrix4::from_translation(Vector3::new(scroll.x, scroll.y, 0f32)),
                 );
-                    let mut err = gl::GetError();
-                    while err != gl::NO_ERROR {
-                        println!(
-                            "Uncaught OpenGl Error: {}",
-                            match err {
-                                gl::INVALID_ENUM => "invalid enum".to_string(),
-                                gl::INVALID_VALUE => "invalid value".to_string(),
-                                gl::INVALID_OPERATION => "invalid operation".to_string(),
-                                x => format!("{}", x),
-                            }
-                        );
-                        err = gl::GetError();
-                    }
+                fb.unbind();
+                let mut err = gl::GetError();
+                while err != gl::NO_ERROR {
+                    println!(
+                        "Uncaught OpenGl Error: {}",
+                        match err {
+                            gl::INVALID_ENUM => "invalid enum".to_string(),
+                            gl::INVALID_VALUE => "invalid value".to_string(),
+                            gl::INVALID_OPERATION => "invalid operation".to_string(),
+                            x => format!("{}", x),
+                        }
+                    );
+                    err = gl::GetError();
+                }
                 context.swap_buffers().unwrap();
             }
             Event::RedrawEventsCleared => {}

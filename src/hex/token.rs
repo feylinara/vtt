@@ -1,10 +1,9 @@
-use crate::render::{self, Bindable, Program};
+use crate::fgl::{self, Bindable, Program};
 use cgmath::{Vector2, Zero};
 use image::{DynamicImage, GenericImageView};
 use itertools::Itertools;
-use render::{ProgramBuilder, Shader};
+use fgl::{ProgramBuilder, Shader};
 
-const QUAD: [f32; 3 * 2 * 2] = [0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0];
 const VERT: &str = include_str!("../../resources/shaders/token.vert");
 const FRAG: &str = include_str!("../../resources/shaders/token.frag");
 
@@ -36,38 +35,38 @@ pub struct TokenManager {
     tile_size: f32,
     tokens: Vec<Token>,
     instances: Vec<TokenInstance>,
-    vbos: [render::VertexBuffer; 2],
-    vao: render::VertexAttribObject,
-    masks: Vec<render::texture::Texture2D>,
+    vbos: [fgl::VertexBuffer; 2],
+    vao: fgl::VertexAttribObject,
+    masks: Vec<fgl::texture::Texture2D>,
     needs_update: bool,
     program: Program,
 }
 
 impl TokenManager {
     pub fn new(tile_size: f32, tokens: impl IntoIterator<Item=Token>) -> Result<(Self, Vec<TokenHandle>), String> {
-        let vao = render::VertexAttribObject::new();
-        let mut vbos: [render::VertexBuffer; 2] = render::VertexBuffer::new_array();
+        let vao = fgl::VertexAttribObject::new();
+        let mut vbos: [fgl::VertexBuffer; 2] = fgl::VertexBuffer::new_array();
 
         vbos[0].alloc_with(
-            &QUAD,
-            render::AccessFrequency::Static,
-            render::AccessType::Draw,
+            &fgl::consts::QUAD,
+            fgl::AccessFrequency::Static,
+            fgl::AccessType::Draw,
         );
         vao.vertex_attribute_array(
             &vbos[0],
-            render::VertexAttribArray::<f32>::with_id(0).with_components_per_value(2),
+            fgl::VertexAttribArray::<f32>::with_id(0).with_components_per_value(2),
         );
 
         vao.vertex_attribute_array(
             &vbos[1],
-            render::VertexAttribArray::<f32>::with_id(1)
+            fgl::VertexAttribArray::<f32>::with_id(1)
                 .with_components_per_value(2)
                 .with_divisor(6),
         );
 
         let program = ProgramBuilder::default()
-            .attach_shader(Shader::from_source(render::ShaderType::Fragment, FRAG)?)
-            .attach_shader(Shader::from_source(render::ShaderType::Vertex, VERT)?)
+            .attach_shader(Shader::from_source(fgl::ShaderType::Fragment, FRAG)?)
+            .attach_shader(Shader::from_source(fgl::ShaderType::Vertex, VERT)?)
             .link()?;
 
         let tokens: Vec<_> = tokens.into_iter().collect();
@@ -110,8 +109,8 @@ impl TokenManager {
             .collect();
         self.vbos[1].alloc_with(
             &data,
-            render::AccessFrequency::Dynamic,
-            render::AccessType::Draw,
+            fgl::AccessFrequency::Dynamic,
+            fgl::AccessType::Draw,
         );
     }
 
@@ -186,7 +185,7 @@ impl TokenManager {
 }
 
 pub struct Token {
-    texture: render::texture::Texture2D,
+    texture: fgl::texture::Texture2D,
     dimensions: Vector2<u32>,
     nominal_size: u32,
     scale: bool,
@@ -204,7 +203,7 @@ impl Token {
     ) -> Self {
         Self {
             dimensions: image.dimensions().into(),
-            texture: crate::render::texture::Texture2D::from_image(image),
+            texture: crate::fgl::texture::Texture2D::from_image(image),
             nominal_size,
             scale,
             mask,

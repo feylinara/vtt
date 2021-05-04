@@ -4,6 +4,7 @@ pub mod framebuffer;
 pub mod program;
 pub mod texture;
 mod util;
+pub mod consts;
 pub use self::program::{Program, ProgramBuilder, Shader, ShaderType};
 pub use util::UnalignedBuffer;
 
@@ -114,7 +115,7 @@ impl Buffer for VertexBuffer {}
 
 #[repr(transparent)]
 pub struct VertexAttribObject {
-    pub(in crate::render) id: GLuint,
+    pub(in crate::fgl) id: GLuint,
 }
 
 impl VertexAttribObject {

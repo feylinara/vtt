@@ -2,6 +2,7 @@ mod hex;
 use hex::grid::HexGridBuilder;
 use hex::token::{CentredOn, Mask, Token, TokenInstance, TokenManager};
 
+mod fgl;
 mod render;
 
 use cgmath::{Matrix3, Matrix4, SquareMatrix, Vector2, Vector3, Vector4, Zero};
@@ -11,7 +12,10 @@ use glutin::{
     window::WindowBuilder,
     ContextBuilder,
 };
+use render::compose::QuadComposer;
 use tokio::runtime::Runtime;
+
+use crate::render::compose::Quad;
 
 pub enum NetworkEvent {}
 
@@ -63,14 +67,12 @@ fn main() {
         .build();
     hex_grid.update_tile((2, 1), Some(1));
 
-    let program = render::program::ProgramBuilder::default()
+    let program = fgl::program::ProgramBuilder::default()
         .attach_shader(
-            render::program::Shader::from_source(render::program::ShaderType::Vertex, VERT)
-                .unwrap(),
+            fgl::program::Shader::from_source(fgl::program::ShaderType::Vertex, VERT).unwrap(),
         )
         .attach_shader(
-            render::program::Shader::from_source(render::program::ShaderType::Fragment, FRAG)
-                .unwrap(),
+            fgl::program::Shader::from_source(fgl::program::ShaderType::Fragment, FRAG).unwrap(),
         )
         .link()
         .unwrap();
@@ -108,21 +110,26 @@ fn main() {
         token: token_ids[0],
     }]);
 
-    let fb = crate::render::framebuffer::FrameBuffer::new();
-    let rb = crate::render::framebuffer::RenderBuffer::new();
+    let mut fb = crate::fgl::framebuffer::FrameBuffer::new();
+    let rb = crate::fgl::framebuffer::RenderBuffer::new();
     rb.alloc(
         context.window().inner_size().width,
         context.window().inner_size().height,
-        crate::render::framebuffer::Format::DepthStencil,
+        crate::fgl::framebuffer::Format::DepthStencil,
         0,
     );
-    fb.attach_renderbuffer(&rb, crate::render::framebuffer::Attachment::DepthStencil);
-    let t = render::texture::Texture2D::with_dimensions(
-        context.window().inner_size().width as i32,
-        context.window().inner_size().height as i32,
-        crate::render::texture::Format::Rgba,
+    fb.attach_renderbuffer(&rb, crate::fgl::framebuffer::Attachment::DepthStencil);
+    let mut t = fgl::texture::Texture2D::with_dimensions(
+        (context.window().inner_size().width) as i32,
+        (context.window().inner_size().height) as i32,
+        crate::fgl::texture::Format::Rgba,
     );
-    fb.attach_texture2d(&t, crate::render::framebuffer::Attachment::Color(0));
+    fb.attach_texture2d(&t, crate::fgl::framebuffer::Attachment::Color(0));
+
+    let mut composer = QuadComposer::new(Vector2::new(
+        context.window().inner_size().width,
+        context.window().inner_size().height,
+    ));
 
     event_loop.run(move |event, _, control_flow| unsafe {
         use glutin::event::{Event, MouseScrollDelta, WindowEvent};
@@ -137,6 +144,22 @@ fn main() {
                     context.resize(ps);
                     projection =
                         cgmath::ortho(0f32, ps.width as f32, 0f32, ps.height as f32, -1f32, 100f32);
+                    composer.resize(Vector2::new(ps.width, ps.height));
+                    fb = crate::fgl::framebuffer::FrameBuffer::new();
+                    t = fgl::texture::Texture2D::with_dimensions(
+                        ps.width as i32,
+                        ps.height as i32,
+                        crate::fgl::texture::Format::Rgba,
+                    );
+                    fb.attach_texture2d(&t, crate::fgl::framebuffer::Attachment::Color(0));
+                    let rb = crate::fgl::framebuffer::RenderBuffer::new();
+                    rb.alloc(
+                        ps.width,
+                        ps.height,
+                        crate::fgl::framebuffer::Format::DepthStencil,
+                        0,
+                    );
+                    fb.attach_renderbuffer(&rb, crate::fgl::framebuffer::Attachment::DepthStencil);
                     gl::Viewport(0, 0, ps.width as i32, ps.height as i32);
                 }
                 WindowEvent::MouseInput {
@@ -196,6 +219,9 @@ fn main() {
             Event::RedrawRequested(_) => {
                 gl::ClearColor(0.8, 0.8, 0.8, 1.0);
                 gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+                fb.clear_color(0, &[0u32, 0, 0, 0]);
+
+                fb.bind();
                 hex_grid.draw(
                     &program,
                     projection
@@ -209,6 +235,14 @@ fn main() {
                         * cgmath::Matrix4::from_translation(Vector3::new(scroll.x, scroll.y, 0f32)),
                 );
                 fb.unbind();
+                composer.render_quad(1, Quad {
+                    offset: Zero::zero(),
+                    size: Vector2::new(
+                        context.window().inner_size().width,
+                        context.window().inner_size().height,
+                    )
+                }, &t);
+
                 let mut err = gl::GetError();
                 while err != gl::NO_ERROR {
                     println!(

@@ -7,7 +7,7 @@ use super::texture::Texture2D;
 
 #[repr(transparent)]
 pub struct FrameBuffer {
-    pub(in crate::render) id: GLuint,
+    pub(in crate::fgl) id: GLuint,
 }
 
 impl Drop for FrameBuffer {
@@ -74,6 +74,11 @@ impl FrameBuffer {
         self.unbind();
     }
 
+    pub fn clear_color<C: ColorClearable>(&self, buffer: i32, color: &[C]) {
+        self.bind();
+        unsafe { C::clear(buffer, color.as_ptr()) }
+    }
+
     pub fn bind(&self) {
         unsafe {
             gl::BindFramebuffer(gl::FRAMEBUFFER, self.id);
@@ -84,6 +89,28 @@ impl FrameBuffer {
         unsafe {
             gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
         }
+    }
+}
+
+pub trait ColorClearable {
+    unsafe fn clear(drawbuffer: i32, value: *const Self);
+}
+
+impl ColorClearable for i32 {
+    unsafe fn clear(drawbuffer: i32, value: *const Self) {
+        gl::ClearBufferiv(gl::COLOR, drawbuffer, value);
+    }
+}
+
+impl ColorClearable for u32 {
+    unsafe fn clear(drawbuffer: i32, value: *const Self) {
+        gl::ClearBufferuiv(gl::COLOR, drawbuffer, value);
+    }
+}
+
+impl ColorClearable for f32 {
+    unsafe fn clear(drawbuffer: i32, value: *const Self) {
+        gl::ClearBufferfv(gl::COLOR, drawbuffer, value);
     }
 }
 
@@ -105,7 +132,7 @@ impl Format {
 }
 
 pub struct RenderBuffer {
-    pub(in crate::render) id: GLuint,
+    pub(in crate::fgl) id: GLuint,
 }
 
 impl RenderBuffer {

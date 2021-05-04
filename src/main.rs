@@ -110,7 +110,7 @@ fn main() {
         token: token_ids[0],
     }]);
 
-    let fb = crate::fgl::framebuffer::FrameBuffer::new();
+    let mut fb = crate::fgl::framebuffer::FrameBuffer::new();
     let rb = crate::fgl::framebuffer::RenderBuffer::new();
     rb.alloc(
         context.window().inner_size().width,
@@ -120,8 +120,8 @@ fn main() {
     );
     fb.attach_renderbuffer(&rb, crate::fgl::framebuffer::Attachment::DepthStencil);
     let mut t = fgl::texture::Texture2D::with_dimensions(
-        context.window().inner_size().width as i32,
-        context.window().inner_size().height as i32,
+        (context.window().inner_size().width) as i32,
+        (context.window().inner_size().height) as i32,
         crate::fgl::texture::Format::Rgba,
     );
     fb.attach_texture2d(&t, crate::fgl::framebuffer::Attachment::Color(0));
@@ -145,11 +145,21 @@ fn main() {
                     projection =
                         cgmath::ortho(0f32, ps.width as f32, 0f32, ps.height as f32, -1f32, 100f32);
                     composer.resize(Vector2::new(ps.width, ps.height));
+                    fb = crate::fgl::framebuffer::FrameBuffer::new();
                     t = fgl::texture::Texture2D::with_dimensions(
-                        context.window().inner_size().width as i32,
-                        context.window().inner_size().height as i32,
+                        ps.width as i32,
+                        ps.height as i32,
                         crate::fgl::texture::Format::Rgba,
                     );
+                    fb.attach_texture2d(&t, crate::fgl::framebuffer::Attachment::Color(0));
+                    let rb = crate::fgl::framebuffer::RenderBuffer::new();
+                    rb.alloc(
+                        ps.width,
+                        ps.height,
+                        crate::fgl::framebuffer::Format::DepthStencil,
+                        0,
+                    );
+                    fb.attach_renderbuffer(&rb, crate::fgl::framebuffer::Attachment::DepthStencil);
                     gl::Viewport(0, 0, ps.width as i32, ps.height as i32);
                 }
                 WindowEvent::MouseInput {

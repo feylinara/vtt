@@ -94,7 +94,7 @@ impl QuadComposer {
     }
 
     pub fn resize(&mut self, size: Vector2<u32>) {
-        self.projection = cgmath::ortho(0f32, size.x as f32, 0f32, size.y as f32, 0f32, 100f32);
+        self.projection = cgmath::ortho(0f32, size.x as f32, 0f32, size.y as f32, -1f32, 100f32);
     }
 
     pub fn resolve_click(&self, offset: Vector2<u32>) -> Option<WidgetId> {

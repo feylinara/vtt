@@ -1,4 +1,4 @@
-use crate::render::{self, Bindable};
+use crate::fgl::{self, Bindable};
 use image::GenericImageView;
 
 pub struct HexGridBuilder<'a> {
@@ -46,37 +46,37 @@ impl<'a> HexGridBuilder<'a> {
             .map(|image| u32::max(image.dimensions().0, image.dimensions().1))
             .max()
             .unwrap_or(0);
-        let mut texture = render::texture::Texture2D::with_dimensions(
+        let mut texture = fgl::texture::Texture2D::with_dimensions(
             tile_size as i32 * self.tiles.len() as i32,
             tile_size as i32,
-            render::texture::Format::Rgba,
+            fgl::texture::Format::Rgba,
         );
         for (n, image) in self.tiles.iter().enumerate() {
             texture.replace_rect((n as u32 * tile_size) as i32, 0, image.clone());
         }
 
-        let vao = render::VertexAttribObject::new();
+        let vao = fgl::VertexAttribObject::new();
 
-        let mut vbos: [render::VertexBuffer; 3] = render::VertexBuffer::new_array();
+        let mut vbos: [fgl::VertexBuffer; 3] = fgl::VertexBuffer::new_array();
         vbos[0].alloc_with(
-            &QUAD,
-            render::AccessFrequency::Static,
-            render::AccessType::Draw,
+            &fgl::consts::QUAD,
+            fgl::AccessFrequency::Static,
+            fgl::AccessType::Draw,
         );
         vao.vertex_attribute_array(
             &vbos[0],
-            render::VertexAttribArray::<f32>::with_id(0).with_components_per_value(2),
+            fgl::VertexAttribArray::<f32>::with_id(0).with_components_per_value(2),
         );
 
         let offsets = super::grid_coords(self.dimensions.0, self.dimensions.1, tile_size as f32);
         vbos[1].alloc_with(
             &offsets,
-            render::AccessFrequency::Static,
-            render::AccessType::Draw,
+            fgl::AccessFrequency::Static,
+            fgl::AccessType::Draw,
         );
         vao.vertex_attribute_array(
             &vbos[1],
-            render::VertexAttribArray::<f32>::with_id(1)
+            fgl::VertexAttribArray::<f32>::with_id(1)
                 .with_components_per_value(2)
                 .with_divisor(6),
         );
@@ -88,7 +88,7 @@ impl<'a> HexGridBuilder<'a> {
         );
         vao.vertex_attribute_array(
             &vbos[2],
-            render::VertexAttribArray::<f32>::with_id(2).with_divisor(6),
+            fgl::VertexAttribArray::<f32>::with_id(2).with_divisor(6),
         );
         vbos[2].alloc_with(
             &(self
@@ -98,8 +98,8 @@ impl<'a> HexGridBuilder<'a> {
                 .iter()
                 .map(|x| *x as f32)
                 .collect::<Vec<_>>()),
-            render::AccessFrequency::Dynamic,
-            render::AccessType::Draw,
+            fgl::AccessFrequency::Dynamic,
+            fgl::AccessType::Draw,
         );
 
         HexGrid {
@@ -124,14 +124,12 @@ impl<'a> HexGridBuilder<'a> {
     }
 }
 
-const QUAD: [f32; 3 * 2 * 2] = [0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0];
-
 pub struct HexGrid {
     dimensions: (u32, u32),
     tile_size: u32,
-    vbos: [render::VertexBuffer; 3],
-    vao: render::VertexAttribObject,
-    texture: render::texture::Texture2D,
+    vbos: [fgl::VertexBuffer; 3],
+    vao: fgl::VertexAttribObject,
+    texture: fgl::texture::Texture2D,
     tilecount: u32,
     grid_contents: Vec<isize>,
 }
@@ -146,7 +144,7 @@ impl Drop for HexGrid {
 }
 
 impl HexGrid {
-    pub unsafe fn draw(&self, program: &render::Program, projection: cgmath::Matrix4<f32>) {
+    pub unsafe fn draw(&self, program: &fgl::Program, projection: cgmath::Matrix4<f32>) {
         program.bind();
         program.uniform_mat4("projection", &projection);
         program.uniform_vec2(

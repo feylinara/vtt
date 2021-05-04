@@ -15,17 +15,17 @@ fn delete_texture<T: Texture>(texture: &mut T) {
 
 #[derive(Eq, PartialEq)]
 pub struct Texture1D {
-    pub(in crate::render) id: GLuint,
+    pub(in crate::fgl) id: GLuint,
 }
 
 #[derive(Eq, PartialEq)]
 pub struct Texture2D {
-    pub(in crate::render) id: GLuint,
+    pub(in crate::fgl) id: GLuint,
 }
 
 #[derive(Eq, PartialEq)]
 pub struct Texture3D {
-    pub(in crate::render) id: GLuint,
+    pub(in crate::fgl) id: GLuint,
 }
 
 impl Texture for Texture2D {

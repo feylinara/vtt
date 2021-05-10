@@ -94,7 +94,7 @@ fn main() {
         .unwrap()
         .decode()
         .unwrap();
-    let (mut token_manger, token_ids) = TokenManager::new(
+    let (mut token_manager, token_ids) = TokenManager::new(
         210.0,
         std::array::IntoIter::new([Token::new(
             token_image,
@@ -105,7 +105,7 @@ fn main() {
         )]),
     )
     .unwrap();
-    token_manger.append_instances(&[TokenInstance {
+    token_manager.append_instances(&[TokenInstance {
         coords: (3, 2).into(),
         token: token_ids[0],
     }]);
@@ -241,7 +241,8 @@ fn main() {
                         * cgmath::Matrix4::from_nonuniform_scale(scale, scale, 1.0)
                         * cgmath::Matrix4::from_translation(Vector3::new(scroll.x, scroll.y, 0f32)),
                 );
-                token_manger.draw(
+                fb.bind();
+                token_manager.draw(
                     projection
                         * cgmath::Matrix4::from_nonuniform_scale(scale, scale, 1.0)
                         * cgmath::Matrix4::from_translation(Vector3::new(scroll.x, scroll.y, 0f32)),

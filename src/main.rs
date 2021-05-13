@@ -112,7 +112,7 @@ fn main() {
     }]);
 
     let mut fb = crate::fgl::framebuffer::FrameBuffer::new();
-    let rb = crate::fgl::framebuffer::RenderBuffer::new();
+    let mut rb = crate::fgl::framebuffer::RenderBuffer::new();
     rb.alloc(
         context.window().inner_size().width,
         context.window().inner_size().height,
@@ -159,7 +159,7 @@ fn main() {
                         crate::fgl::texture::Format::Rgba,
                     );
                     fb.attach_texture2d(&t, crate::fgl::framebuffer::Attachment::Color(0));
-                    let rb = crate::fgl::framebuffer::RenderBuffer::new();
+                    rb = crate::fgl::framebuffer::RenderBuffer::new();
                     rb.alloc(
                         ps.width,
                         ps.height,
@@ -230,7 +230,7 @@ fn main() {
             Event::Resumed => {}
             Event::MainEventsCleared => {}
             Event::RedrawRequested(_) => {
-                gl::ClearColor(0.8, 0.8, 0.8, 1.0);
+                gl::ClearColor(0.8, 0.9, 0.8, 1.0);
                 gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
                 fb.clear_color(0, &[0u32, 0, 0, 0]);
                 fb.clear_color(1, &[0u32, 0, 0]);

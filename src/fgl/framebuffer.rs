@@ -37,6 +37,29 @@ impl From<Attachment> for GLenum {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Status {
+    /// The specified framebuffer is the default read or draw framebuffer, but the default framebuffer does not exist
+    Undefined,
+    /// One of the framebuffer attachment points is framebuffer incomplete
+    IncompleteAttachment,
+    /// The framebuffer does not have at least one image attached to it
+    MissingAttachment,
+    /// The value of GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE is GL_NONE for any draw color attachment point(s)
+    IncompleteDrawBuffer,
+    /// The value of GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE is GL_NONE for any read color attachment point(s)
+    IncompleteReadBuffer,
+    /// The combination of internal formats of the attached images violates an implementation-dependent set of restrictions
+    Unsupported,
+    /// the value of GL_RENDERBUFFER_SAMPLES is not the same for all attached renderbuffers, the value of GL_TEXTURE_SAMPLES
+    /// is the not same for all attached textures, or the attached images are a mix of renderbuffers and textures, the value of
+    /// GL_RENDERBUFFER_SAMPLES does not match the value of GL_TEXTURE_SAMPLES. 
+    IncompleteMultisample,
+    /// Any framebuffer attachment is layered, and any populated attachment is not layered, or all populated color attachments are
+    /// not from textures of the same target.
+    IncompleteLayerTargets,
+}
+
 impl FrameBuffer {
     pub fn new() -> Self {
         let mut id = 0;
@@ -52,6 +75,25 @@ impl FrameBuffer {
             gl::GenFramebuffers(N as i32, &mut buffers[0] as *mut Self as *mut GLuint);
         }
         buffers
+    }
+
+    pub fn status(&self) -> Option<Status> {
+        self.bind();
+        let r = unsafe {
+            Some(match gl::CheckFramebufferStatus(gl::FRAMEBUFFER) {
+                gl::FRAMEBUFFER_UNDEFINED => Status::Undefined,
+                gl::FRAMEBUFFER_INCOMPLETE_ATTACHMENT => Status::IncompleteAttachment,
+                gl::FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT => Status::MissingAttachment,
+                gl::FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER => Status::IncompleteDrawBuffer,
+                gl::FRAMEBUFFER_INCOMPLETE_READ_BUFFER => Status::IncompleteReadBuffer,
+                gl::FRAMEBUFFER_UNSUPPORTED => Status::Unsupported,
+                gl::FRAMEBUFFER_INCOMPLETE_MULTISAMPLE => Status::IncompleteMultisample,
+                gl::FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS => Status::IncompleteLayerTargets,            
+                _ => return None
+            })
+        };
+        self.unbind();
+        r
     }
 
     pub fn attach_texture2d(&self, texture: &Texture2D, attachment: Attachment) {

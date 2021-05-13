@@ -11,7 +11,7 @@ flat out float fragtile;
 flat out int iid;
 
 void main() {
-    gl_Position = projection * vec4(offset + pos * size, 1.0, 1.0);
+    gl_Position = projection * vec4(offset + pos * size, 0.5, 1.0);
     texpos = pos;
     fragtile = tile;
     iid = gl_InstanceID;

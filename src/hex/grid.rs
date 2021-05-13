@@ -134,15 +134,6 @@ pub struct HexGrid {
     grid_contents: Vec<isize>,
 }
 
-impl Drop for HexGrid {
-    fn drop(&mut self) {
-        for buffer in self.vbos.iter() {
-            buffer.delete()
-        }
-        // TODO: delete everything else
-    }
-}
-
 impl HexGrid {
     pub unsafe fn draw(&self, program: &fgl::Program, projection: cgmath::Matrix4<f32>) {
         program.bind();

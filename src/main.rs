@@ -4,6 +4,7 @@ use hex::token::{CentredOn, Mask, Token, TokenInstance, TokenManager};
 
 mod fgl;
 mod render;
+mod gui;
 
 use cgmath::{Matrix3, Matrix4, SquareMatrix, Vector2, Vector3, Vector4, Zero};
 use glutin::{
@@ -125,6 +126,12 @@ fn main() {
         crate::fgl::texture::Format::Rgba,
     );
     fb.attach_texture2d(&t, crate::fgl::framebuffer::Attachment::Color(0));
+    let mut click_tex = fgl::texture::Texture2D::with_dimensions(
+        (context.window().inner_size().width) as i32,
+        (context.window().inner_size().height) as i32,
+        crate::fgl::texture::Format::Rgb,
+    );
+    fb.attach_texture2d(&click_tex, crate::fgl::framebuffer::Attachment::Color(1));
 
     let mut composer = QuadComposer::new(Vector2::new(
         context.window().inner_size().width,
@@ -160,6 +167,12 @@ fn main() {
                         0,
                     );
                     fb.attach_renderbuffer(&rb, crate::fgl::framebuffer::Attachment::DepthStencil);
+                    let mut click_tex = fgl::texture::Texture2D::with_dimensions(
+                        (context.window().inner_size().width) as i32,
+                        (context.window().inner_size().height) as i32,
+                        crate::fgl::texture::Format::Rgb,
+                    );
+                    fb.attach_texture2d(&click_tex, crate::fgl::framebuffer::Attachment::Color(1));
                     gl::Viewport(0, 0, ps.width as i32, ps.height as i32);
                 }
                 WindowEvent::MouseInput {
@@ -220,6 +233,7 @@ fn main() {
                 gl::ClearColor(0.8, 0.8, 0.8, 1.0);
                 gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
                 fb.clear_color(0, &[0u32, 0, 0, 0]);
+                fb.clear_color(1, &[0u32, 0, 0]);
 
                 fb.bind();
                 hex_grid.draw(
@@ -242,6 +256,7 @@ fn main() {
                         context.window().inner_size().height,
                     )
                 }, &t);
+                composer.end_frame();
 
                 let mut err = gl::GetError();
                 while err != gl::NO_ERROR {

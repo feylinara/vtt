@@ -11,8 +11,7 @@ layout(location=1) out uvec3 click;
 
 void main() {
     color = texture2D(token, texpos);
-    if (texture2D(token, texpos).a >= 0.0) {
-        // click = uvec3(renderpass, (frag_token_name >> 8) | uint(0xff), frag_token_name | uint(0xff));
-        click = uvec3(renderpass, 0, 0);
+    if (texture2D(token, texpos).a > 0.0) {
+        click = uvec3(renderpass, (frag_token_name >> 8) & uint(0xff), frag_token_name & uint(0xff));
     }
 }

@@ -179,7 +179,8 @@ fn main() {
                         ps.height as i32,
                         crate::fgl::texture::Format::Rgb,
                     );
-                    fb.attach_texture2d(&click_t, crate::fgl::framebuffer::Attachment::Color(1));                
+                    fb.attach_texture2d(&click_t, crate::fgl::framebuffer::Attachment::Color(1));
+                    fb.set_draw_buffers(&[Some(0), Some(1)]);          
                     gl::Viewport(0, 0, ps.width as i32, ps.height as i32);
                 }
                 WindowEvent::MouseInput {
@@ -240,7 +241,7 @@ fn main() {
                 gl::ClearColor(0.9, 0.9, 0.9, 1.0);
                 gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
                 fb.clear_color(0, &[0u32, 0, 0, 0]);
-                fb.clear_color(1, &[0u32, 0, 0]);
+                fb.clear_color(1, &[0u32, 125, 0]);
 
                 fb.bind();
                 hex_grid.draw(
@@ -271,7 +272,7 @@ fn main() {
                         (context.window().inner_size().width as f64 * 0.1) as u32,
                         (context.window().inner_size().height as f64 * 0.1) as u32,
                     )
-                }, &t);
+                }, &click_t);
 
                 let mut err = gl::GetError();
                 while err != gl::NO_ERROR {

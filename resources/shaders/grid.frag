@@ -14,5 +14,5 @@ layout(location=1) out uvec3 click;
 
 void main() {
   color = texture2D(tilesheet, vec2((texpos.x + fragtile) / ntiles, 1 - texpos.y));
-  click = uvec3(renderpass, 0, 0);
+  // click = uvec3(renderpass, 0, 0);
 }

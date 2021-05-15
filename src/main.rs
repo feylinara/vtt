@@ -13,10 +13,13 @@ use glutin::{
     window::WindowBuilder,
     ContextBuilder,
 };
+#[cfg(target_os = "windows")]
+use glutin::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
+
 use render::compose::QuadComposer;
 use tokio::runtime::Runtime;
 
-use crate::render::compose::Quad;
+use crate::{fgl::texture::Filter, render::compose::Quad};
 
 pub enum NetworkEvent {}
 
@@ -32,7 +35,7 @@ const FRAG: &str = include_str!("../resources/shaders/grid.frag");
 
 fn main() {
     let event_loop = EventLoop::with_user_event();
-    let window_builder = WindowBuilder::new();
+    let window_builder = WindowBuilder::new().with_title("feywild");
     let context = unsafe {
         ContextBuilder::new()
             .with_vsync(true)
@@ -125,6 +128,8 @@ fn main() {
         (context.window().inner_size().height) as i32,
         crate::fgl::texture::Format::Rgba,
     );
+    t.set_min_filter(Filter::Nearest);
+    t.set_mag_filter(Filter::Nearest);
     fb.attach_texture2d(&t, crate::fgl::framebuffer::Attachment::Color(0));
     let mut click_tex = fgl::texture::Texture2D::with_dimensions(
         (context.window().inner_size().width) as i32,
@@ -158,6 +163,9 @@ fn main() {
                         ps.height as i32,
                         crate::fgl::texture::Format::Rgba,
                     );
+                    t.set_min_filter(Filter::Nearest);
+                    t.set_mag_filter(Filter::Nearest);
+
                     fb.attach_texture2d(&t, crate::fgl::framebuffer::Attachment::Color(0));
                     rb = crate::fgl::framebuffer::RenderBuffer::new();
                     rb.alloc(
@@ -172,7 +180,12 @@ fn main() {
                         (context.window().inner_size().height) as i32,
                         crate::fgl::texture::Format::Rgb,
                     );
+<<<<<<< HEAD
                     fb.attach_texture2d(&click_tex, crate::fgl::framebuffer::Attachment::Color(1));
+=======
+                    fb.attach_texture2d(&click_t, crate::fgl::framebuffer::Attachment::Color(1));
+                    fb.set_draw_buffers(&[Some(0), Some(1)]);          
+>>>>>>> e88259d667937cfc85b74f39e482ffcb7d994474
                     gl::Viewport(0, 0, ps.width as i32, ps.height as i32);
                 }
                 WindowEvent::MouseInput {
@@ -230,10 +243,10 @@ fn main() {
             Event::Resumed => {}
             Event::MainEventsCleared => {}
             Event::RedrawRequested(_) => {
-                gl::ClearColor(0.8, 0.9, 0.8, 1.0);
+                gl::ClearColor(0.9, 0.9, 0.9, 1.0);
                 gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
                 fb.clear_color(0, &[0u32, 0, 0, 0]);
-                fb.clear_color(1, &[0u32, 0, 0]);
+                fb.clear_color(1, &[0u32, 125, 0]);
 
                 fb.bind();
                 hex_grid.draw(
@@ -249,15 +262,24 @@ fn main() {
                         * cgmath::Matrix4::from_translation(Vector3::new(scroll.x, scroll.y, 0f32)),
                 );
                 fb.unbind();
-                composer.render_quad(1, Quad {
+                composer.render_quad(0, Quad {
                     offset: Zero::zero(),
                     size: Vector2::new(
                         context.window().inner_size().width,
                         context.window().inner_size().height,
                     )
                 }, &t);
-                composer.end_frame();
+                composer.render_quad(1, Quad {
+                    offset: Vector2::new(
+                        10, 10
+                    ),
+                    size: Vector2::new(
+                        (context.window().inner_size().width as f64 * 0.1) as u32,
+                        (context.window().inner_size().height as f64 * 0.1) as u32,
+                    )
+                }, &click_t);
 
+                composer.end_frame();
                 let mut err = gl::GetError();
                 while err != gl::NO_ERROR {
                     println!(

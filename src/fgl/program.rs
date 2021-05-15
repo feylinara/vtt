@@ -161,6 +161,12 @@ impl Program {
             gl::Uniform1iv(uniform_id, 1, &uniform);
         }
     }
+    pub fn uniform_u32(&self, name: &str, uniform: u32) {
+        unsafe {
+            let uniform_id = self.get_uniform_location(name);
+            gl::Uniform1uiv(uniform_id, 1, &uniform);
+        }
+    }
     pub fn uniform_f32(&self, name: &str, uniform: f32) {
         unsafe {
             let uniform_id = self.get_uniform_location(name);

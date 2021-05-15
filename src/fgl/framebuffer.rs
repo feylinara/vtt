@@ -102,6 +102,17 @@ impl FrameBuffer {
         self.unbind();
     }
 
+    pub fn set_draw_buffers(&self, buffers: &[Option<u32>]) {
+        self.bind();
+        let buffers: Vec<_> = buffers.iter().map(|x| match x {
+            Some(x) => gl::COLOR_ATTACHMENT0 + x,
+            None => gl::NONE,
+        }).collect();
+        unsafe {
+            gl::DrawBuffers(buffers.len() as i32, &buffers[0] as *const _)
+        }
+    }
+
     pub fn attach_renderbuffer(&self, renderbuffer: &RenderBuffer, attachment: Attachment) {
         self.bind();
         renderbuffer.bind();

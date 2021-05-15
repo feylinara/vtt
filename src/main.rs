@@ -15,6 +15,8 @@ use glutin::{
 };
 #[cfg(target_os = "windows")]
 use glutin::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
+#[cfg(target_os = "linux")]
+use glutin::platform::windows::{WindowBuilderExtWindows, UnixExtWindows};
 
 use render::compose::QuadComposer;
 use tokio::runtime::Runtime;
@@ -180,12 +182,8 @@ fn main() {
                         (context.window().inner_size().height) as i32,
                         crate::fgl::texture::Format::Rgb,
                     );
-<<<<<<< HEAD
-                    fb.attach_texture2d(&click_tex, crate::fgl::framebuffer::Attachment::Color(1));
-=======
                     fb.attach_texture2d(&click_t, crate::fgl::framebuffer::Attachment::Color(1));
                     fb.set_draw_buffers(&[Some(0), Some(1)]);          
->>>>>>> e88259d667937cfc85b74f39e482ffcb7d994474
                     gl::Viewport(0, 0, ps.width as i32, ps.height as i32);
                 }
                 WindowEvent::MouseInput {

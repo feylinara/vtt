@@ -10,5 +10,5 @@ out vec2 texpos;
 
 void main() {
     gl_Position = projection * vec4(offset + pos * dimensions, 1.0, 1.0);
-    texpos = vec2(pos.x, pos.y);
+    texpos = pos;
 }

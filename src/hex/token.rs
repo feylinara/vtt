@@ -153,6 +153,7 @@ impl TokenManager {
             .map(|g| (g.0, g.1.count()))
             .collect();
         self.program.uniform_mat4("projection", &projection);
+        self.program.uniform_u32("renderpass", 125);
         let mut first = 0;
         for (handle, batch_size) in batches {
             let token = &self.tokens[handle.0];

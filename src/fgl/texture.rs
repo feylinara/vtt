@@ -1,6 +1,7 @@
-use gl;
-use gl::types::GLuint;
+use gl::types::{GLint, GLuint};
+use gl::{self, types::GLenum};
 use image::{DynamicImage, GenericImageView};
+use itertools::Interleave;
 use std::os::raw::c_void;
 
 trait Texture {
@@ -95,6 +96,57 @@ fn format(image: &DynamicImage) -> Format {
     }
 }
 
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
+pub enum Filter {
+    Nearest,
+    Linear,
+}
+
+impl Into<MipMapFilter> for Filter {
+    fn into(self) -> MipMapFilter {
+        match self {
+            Filter::Nearest => MipMapFilter::Nearest { mipmap: None },
+            Filter::Linear => MipMapFilter::Linear { mipmap: None },
+        }
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
+pub enum MipMapFilter {
+    Nearest { mipmap: Option<Filter> },
+    Linear { mipmap: Option<Filter> },
+}
+
+impl Into<GLint> for MipMapFilter {
+    fn into(self) -> GLint {
+        (match self {
+            MipMapFilter::Nearest { mipmap: None } => gl::NEAREST,
+            MipMapFilter::Nearest {
+                mipmap: Some(Filter::Nearest),
+            } => gl::NEAREST_MIPMAP_NEAREST,
+            MipMapFilter::Nearest {
+                mipmap: Some(Filter::Linear),
+            } => gl::NEAREST_MIPMAP_LINEAR,
+            MipMapFilter::Linear { mipmap: None } => gl::LINEAR,
+            MipMapFilter::Linear {
+                mipmap: Some(Filter::Nearest),
+            } => gl::LINEAR_MIPMAP_NEAREST,
+            MipMapFilter::Linear {
+                mipmap: Some(Filter::Linear),
+            } => gl::LINEAR_MIPMAP_LINEAR,
+        }) as GLint
+    }
+}
+
+impl Into<GLint> for Filter {
+    fn into(self) -> GLint {
+        (match self {
+            Filter::Nearest => gl::NEAREST,
+            Filter::Linear => gl::LINEAR,
+        }) as GLint
+    }
+}
+
 impl Texture2D {
     /// Create a Texture2D from an Image.
     ///
@@ -172,6 +224,20 @@ impl Texture2D {
         }
     }
 
+    pub fn set_mag_filter(&self, f: Filter) {
+        self.bind(0);
+        unsafe {
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, f.into());
+        }
+    }
+
+    pub fn set_min_filter(&self, f: impl Into<MipMapFilter>) {
+        self.bind(0);
+        unsafe {
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, f.into().into());
+        }
+    }
+
     pub fn bind(&self, idx: u32) {
         unsafe {
             gl::ActiveTexture(gl::TEXTURE0 + idx);
@@ -187,8 +253,6 @@ impl Texture2D {
 
 impl Drop for Texture2D {
     fn drop(&mut self) {
-        unsafe {
-            gl::DeleteTextures(1, &self.get_id() as *const _)
-        }
+        unsafe { gl::DeleteTextures(1, &self.get_id() as *const _) }
     }
 }

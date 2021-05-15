@@ -152,6 +152,7 @@ impl HexGrid {
             [self.tile_size as f32, self.tile_size as f32].into(),
         );
         program.uniform_f32("ntiles", self.tilecount as f32);
+        program.uniform_u32("renderpass", 0);
         self.vao.bind();
         self.texture.bind(0);
         gl::DrawArraysInstanced(

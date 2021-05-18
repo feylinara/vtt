@@ -16,7 +16,7 @@ use glutin::{
 #[cfg(target_os = "windows")]
 use glutin::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
 #[cfg(target_os = "linux")]
-use glutin::platform::windows::{WindowBuilderExtWindows, UnixExtWindows};
+use glutin::platform::unix::{WindowBuilderExtUnix, WindowExtUnix};
 
 use render::compose::QuadComposer;
 use tokio::runtime::Runtime;
@@ -133,13 +133,13 @@ fn main() {
     t.set_min_filter(Filter::Nearest);
     t.set_mag_filter(Filter::Nearest);
     fb.attach_texture2d(&t, crate::fgl::framebuffer::Attachment::Color(0));
-    let mut click_tex = fgl::texture::Texture2D::with_dimensions(
+    let mut click_t = fgl::texture::Texture2D::with_dimensions(
         (context.window().inner_size().width) as i32,
         (context.window().inner_size().height) as i32,
         crate::fgl::texture::Format::Rgb,
     );
-    fb.attach_texture2d(&click_tex, crate::fgl::framebuffer::Attachment::Color(1));
-
+    fb.attach_texture2d(&click_t, crate::fgl::framebuffer::Attachment::Color(1));
+    fb.set_draw_buffers(&[Some(0), Some(1)]);          
     let mut composer = QuadComposer::new(Vector2::new(
         context.window().inner_size().width,
         context.window().inner_size().height,
@@ -177,7 +177,7 @@ fn main() {
                         0,
                     );
                     fb.attach_renderbuffer(&rb, crate::fgl::framebuffer::Attachment::DepthStencil);
-                    let mut click_tex = fgl::texture::Texture2D::with_dimensions(
+                    let mut click_t = fgl::texture::Texture2D::with_dimensions(
                         (context.window().inner_size().width) as i32,
                         (context.window().inner_size().height) as i32,
                         crate::fgl::texture::Format::Rgb,
